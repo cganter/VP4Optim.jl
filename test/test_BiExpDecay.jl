@@ -21,7 +21,7 @@ lx = zeros(4) # lower bounds
 ux = ones(4) # upper bounds
 
 # what to test
-what = (:consistency) #, :derivatives, :optimization)
+what = (:consistency,) #, :derivatives, :optimization)
 
 # do the tests
 res = VP.check_model(BiExpDecay, args, x, c, y, what = what, x0 = x0, lx = lx, ux = ux)
