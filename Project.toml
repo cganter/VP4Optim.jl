@@ -1,0 +1,13 @@
+name = "VP4Optim"
+uuid = "8687cf0f-8f6d-4dd6-8e27-64e326ab5325"
+authors = ["Carl Ganter <cganter@tum.de>"]
+version = "0.1.0"
+
+[compat]
+julia = "1.6.7"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
