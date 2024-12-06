@@ -229,12 +229,11 @@ function ∂∂Bb!(::Model)
     error("Missing implementation of ∂∂Bb!")
 end
 
+#Requires a prior call of [y!(mod::Model{Ny,Nx,Nc,T}, new_y::AbstractArray) where {Ny,Nx,Nc,T}](@ref) to make any sense.
 """
     y_model(mod::Model)
 
 Compute model prediction `A(mod) * c(mod)` at actual `x`.
-
-Requires a prior call of [y!(mod::Model{Ny,Nx,Nc,T}, new_y::AbstractArray) where {Ny,Nx,Nc,T}](@ref) to make any sense.
 """
 function y_model(mod::Model)
     A(mod) * c(mod)
@@ -319,10 +318,9 @@ function P(mod::Model{Ny,Nx,Nc,T}, x) where {Ny,Nx,Nc,T}
     H
 end
 
+#Helper function for [`f(mod::Model)`](@ref).
 """
     f(y2, B, b)
-
-Helper function for [`f(mod::Model)`](@ref).
 
 Should not be called directly.
 """
@@ -330,10 +328,9 @@ function f(y2, B, b)
     y2 - real(b' * (B \ b))
 end
 
+#Helper function for [`fg!(mod::Model)`](@ref).
 """
     fg!(::Model{Ny,Nx,Nc,T}, F, G, y2, B, b, ∂B, ∂b) where {Ny,Nx,Nc,T}
-
-Helper function for [`fg!(mod::Model)`](@ref).
 
 Should not be called directly.
 """
@@ -349,10 +346,9 @@ function fg!(::Model{Ny,Nx,Nc,T}, F, G, y2, B, b, ∂B, ∂b) where {Ny,Nx,Nc,T}
     end
 end
 
+#Helper function for [`fgh!(mod::Model)`](@ref).
 """
     fgh!(::Model{Ny,Nx,Nc,T}, F, G, H, y2, B, b, ∂B, ∂b, ∂∂B, ∂∂b) where {Ny,Nx,Nc,T}
-
-Helper function for [`fgh!(mod::Model)`](@ref).
 
 Should not be called directly.
 """
