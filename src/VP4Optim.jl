@@ -1,5 +1,6 @@
 module VP4Optim
-
-# Write your package code here.
-
+    # module implementation
+    include("vp4optim.jl")
+    # module testing tools
+    include("../test/test_tools.jl")
 end
