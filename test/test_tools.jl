@@ -1,7 +1,143 @@
 using LinearAlgebra, Combinatorics, Test, Optim
 
+"""
+    check_model(modcon, args, val, c_, y_;
+    what=(:consistency, :derivatives, :optimization),
+    small=sqrt(eps()),
+    x0=[], lx=[], ux=[],
+    precon=true,
+    visual=false)
+
+Tests, which any specific model should pass.
+
+# Arguments
+- `modcon::Function`: Constructor to the model to be tested.
+- `args::Tuple`: Arguments, as expected by constructor, like `modcon(args...)` or `modcon(args; x_sym=x_sym)`.
+- `val::Vector{Float64}`: *All* nonlinear parameters, the model depends on. As defined in the `Model` field `val`.
+- `c_::Vector{Nc, T}`: Linear cofficients, the model depends on.
+- `y_::Vector{T}`: Data, corresponding to the *true* parameters `val` and `c_`. 
+- `what::Tuple{Symbol}`: Tests to be performed (see below).
+- `small::Float64`: Required as accuracy criterion.
+- `x0::Vector{Float64}`: Starting point for optimization and location, where derivatives are tested.
+- `lx::Vector{Float64}`: Lower bound of optimization
+- `ux::Vector{Float64}`: Upper bound of optimization
+- `precon::Bool`: Test optimization with and without preconditioner.
+- `visual::Bool`: If `true` also generate double-logarithmic plots for the derivative tests.
+
+## Remark
+
+- Tests are performed for every `x_sym ⊆ sym`.
+- Returns a dictionary with detailed information about the test results.
+- `:consistency ∈ what`: Several basic tests (parameters, names, correct model values)
+- `:derivatives ∈ what`: Check first and second order partial derivatives at `x0`.
+- `:optimization ∈ what`: Minimize model with `x0` as starting point and bounds `lx` and `ux`.
+- An example application can be found in [`test_BiExpDecay.jl`](https://github.com/cganter/VP4Optim.jl/blob/main/test/test_BiExpDecay.jl). This should also work as a template, how to perform tests on own models.
+"""
+function check_model(modcon, args, val, c_, y_;
+    what=(:consistency, :derivatives, :optimization),
+    small=sqrt(eps()),
+    x0=[], lx=[], ux=[],
+    precon=true,
+    visual=false)
+    mod = modcon(args...)
+    syms = sym(mod)
+    d = Dict()
+
+    for xsy in Combinatorics.powerset(syms, 1)
+        mod = modcon(args...; x_sym=xsy)
+        d[xsy] = Dict()
+        d[xsy][:check_subset_args] = (mod, xsy, val, c_, y_, what, small, x0, lx, ux, precon, d[xsy])
+        check_subset(mod, xsy, val, c_, y_, what, small, x0, lx, ux, precon, d[xsy], visual)
+    end
+
+    return d
+end
+
+"""
+    check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, val, c_, y_, what, small, x0, lx, ux, precon, d, visual) where {Ny,Nx,Nc,T}
+
+Helper function of [`check_model`](@ref check_model), which performs the tests for a given subset `x_sym ⊆ sym`.
+
+## Remark
+
+- Should not be called directly.
+"""
+function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, val, c_, y_, what, small, x0, lx, ux, precon, d, visual) where {Ny,Nx,Nc,T}
+    @assert all(w -> w ∈ (:consistency, :derivatives, :optimization), what)
+
+    y!(mod, y_)
+    x_, par_, x0_ = val[mod.x_ind], val[mod.par_ind], x0[mod.x_ind]
+    x!(mod, x_)
+    par!(mod, par_)
+
+    # consistency checks at the minimum, i.e. for y_ = A(x_) * c_
+    if :consistency ∈ what
+        # are variable names set correctly
+        @test x_sym(mod) == xsy
+        psy = filter(x -> x ∉ xsy, sym(mod))
+        # are fixed parameter names set correctly
+        @test par_sym(mod) == psy
+        # do we cover all parameters
+        @test length(par(mod)) + length(x(mod)) == length(sym(mod))
+        # are the variables set correctly
+        @test x(mod) == x_
+        # are the fixed parameters set correctly
+        @test par(mod) == par_
+        # do we obtain a local minimum (since x_ should correspond to data y_)
+        @test abs(f(mod)(x(mod))) < small
+        # calculated data match supplied ones
+        @test y_model(mod) ≈ y(mod) == y_
+        # the correct linear coefficients are obtained
+        @test c(mod) ≈ c_
+    end
+
+    # derivatives are tested at x0_ ≠ x_
+    if :derivatives ∈ what
+        δx = randn(length(x_))
+        title = ""
+        for sy in x_sym(mod)
+            title *= " " * string(sy)
+        end
+        check_fgh!(fgh!(mod), x0_, δx, title=title, visual=visual)
+    end
+
+    if :optimization ∈ what
+        x0_, lx_, ux_ = collect(x0[mod.x_ind]), collect(lx[mod.x_ind]), collect(ux[mod.x_ind])
+
+        if precon
+            res_precon = optimize(Optim.only_fg!(fg!(mod)), lx_, ux_, x0_, Fminbox(LBFGS(P=P(mod, x0_))))
+            @test norm(x_ - res_precon.minimizer) / norm(x_) < 1e-5
+            x!(mod, res_precon.minimizer)
+            @test norm(c_ - c(mod)) / norm(c_) < 1e-5
+            d[:optim_precon] = res_precon
+        end
+
+        res_no_precon = optimize(Optim.only_fg!(fg!(mod)), lx_, ux_, x0_, Fminbox(LBFGS()))
+        @test norm(x_ - res_no_precon.minimizer) / norm(x_) < 1e-5
+        x!(mod, res_no_precon.minimizer)
+        @test norm(c_ - c(mod)) / norm(c_) < 1e-5
+        d[:optim_no_precon] = res_no_precon
+    end
+end
+
+"""
+    check_fgh!(fgh!, x0, δx;
+    log_rng=10 .^ range(-5, -1, 10),
+    title="Titel",
+    plot_size=(1000, 500),
+    visual=false)
+
+Helper function of [`check_model`](@ref check_model), which checks the derivatives up to second order for a given subset `x_sym ⊆ sym`.
+
+## Remark
+
+- Should not be called directly.
+"""
 function check_fgh!(fgh!, x0, δx;
-    log_rng=10 .^ range(-5, -1, 10), title = "Titel", plot_size=(1000,500))
+    log_rng=10 .^ range(-5, -1, 10),
+    title="Titel",
+    plot_size=(1000, 500),
+    visual=false)
 
     lx = length(x0)
     F = zero(eltype(x0))
@@ -41,84 +177,27 @@ function check_fgh!(fgh!, x0, δx;
     sfla = δfla[1] / nhs[1]
     sGla = δGla[1] / nhs[1]
 
-    # initialize plot vector
-    plts = []
+    # calculate linear regression slope of the logarithms
+    log_nhs = log.(nhs)
+    log_δfla = log.(δfla)
+    slope = (sum(log_nhs) * sum(log_δfla) - length(nhs) * (log_nhs' * log_δfla)) /
+            (sum(log_nhs)^2 - length(nhs) * (log_nhs' * log_nhs))
 
-    # plot result for gradient
-    push!(plts, plot(nhs, sfla * nhs, xaxis=:log, yaxis=:log, title=string("gradient: ", title), label="approx"))
-    scatter!(nhs, δfla, xaxis=:log, yaxis=:log, label="exact", legend=:topleft)
+    @test slope > 0.95
 
-    # plot result for Hessian
-    push!(plts, plot(nhs, sGla * nhs, xaxis=:log, yaxis=:log, title=string("Hessian: ", title), label="approx"))
-    scatter!(nhs, δGla, xaxis=:log, yaxis=:log, label="exact", legend=:topleft)
+    if visual
+        # initialize plot vector
+        plts = []
 
-    # show plots
-    display(plot(plts..., size = plot_size))
-end
+        # plot result for gradient
+        push!(plts, plot(nhs, sfla * nhs, xaxis=:log, yaxis=:log, title=string("gradient: ", title), label="approx"))
+        scatter!(nhs, δfla, xaxis=:log, yaxis=:log, label="exact", legend=:topleft)
 
-function check_model(constructor, args, mod_par, c_, y_; 
-        what=(:consistency, :derivatives, :optimization),
-        small = sqrt(eps()),
-        x0 = [], lx = [], ux = [],
-        precon = true)    
-    mod = constructor(args...)
-    syms = sym(mod)
-    d = Dict()
+        # plot result for Hessian
+        push!(plts, plot(nhs, sGla * nhs, xaxis=:log, yaxis=:log, title=string("Hessian: ", title), label="approx"))
+        scatter!(nhs, δGla, xaxis=:log, yaxis=:log, label="exact", legend=:topleft)
 
-    for xsy in Combinatorics.powerset(syms, 1)
-        mod = constructor(args...; x_sym = xsy)
-        d[xsy] = Dict()
-        d[xsy][:check_subset_args] = (mod, xsy, mod_par, c_, y_, what, small, x0, lx, ux, precon, d[xsy])
-        check_subset(mod, xsy, mod_par, c_, y_, what, small, x0, lx, ux, precon, d[xsy])
-    end
-    
-    return d
-end
-
-function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, mod_val, c_, y_, what, small, x0, lx, ux, precon, d) where {Ny,Nx,Nc,T}
-    @assert all(w -> w ∈ (:consistency, :derivatives, :optimization), what)
-
-    y!(mod, y_)
-    x_, par_ = mod_val[mod.x_ind], mod_val[mod.par_ind]
-    x!(mod, x_)
-    par!(mod, par_)
-
-    if :consistency ∈ what
-        @test x_sym(mod) == xsy
-        psy = filter(x -> x ∉ xsy, sym(mod))
-        @test par_sym(mod) == psy
-        @test length(par(mod)) + length(x(mod)) == length(sym(mod))
-        @test x(mod) == x_
-        @test par(mod) == par_
-        @test abs(f(mod)(x(mod))) < small
-        @test y_model(mod) ≈ y(mod) == y_
-        @test c(mod) ≈ c_
-    end
-
-    if :derivatives ∈ what
-        δx = randn(length(x_))
-        title = ""
-        for sy in x_sym(mod)
-            title *= " " * string(sy)
-        end
-        check_fgh!(fgh!(mod), x_, δx, title = title)
-    end
-    
-    if :optimization ∈ what
-        x0_, lx_, ux_ = collect(x0[mod.x_ind]), collect(lx[mod.x_ind]), collect(ux[mod.x_ind])
-        
-        if precon
-            res_precon = optimize(Optim.only_fg!(fg!(mod)), lx_, ux_, x0_, Fminbox(LBFGS(P = P(mod, x0_))))
-            @test norm(x_ - res_precon.minimizer) / norm(x_) < 1e-5
-            x!(mod, res_precon.minimizer)
-            @test norm(c_ - c(mod)) / norm(c_) < 1e-5
-            d[:optim_precon] = res_precon
-        end
-            
-        res_no_precon = optimize(Optim.only_fg!(fg!(mod)), lx_, ux_, x0_, Fminbox(LBFGS()))
-        @test norm(x_ - res_no_precon.minimizer) / norm(x_) < 1e-5
-        x!(mod, res_no_precon.minimizer)
-        @test norm(c_ - c(mod)) / norm(c_) < 1e-5
-        d[:optim_no_precon] = res_no_precon
+        # show plots
+        display(plot(plts..., size=plot_size))
     end
 end

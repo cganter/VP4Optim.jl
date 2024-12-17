@@ -4,7 +4,7 @@ using Documenter
 DocMeta.setdocmeta!(VP4Optim, :DocTestSetup, :(using VP4Optim); recursive=true)
 
 makedocs(;
-    modules=[VP4Optim],
+    #modules=[VP4Optim],
     authors="Carl Ganter <cganter@tum.de>",
     sitename="VP4Optim.jl",
     format=Documenter.HTML(;
@@ -14,6 +14,11 @@ makedocs(;
     ),
     pages=[
         "Home" => "index.md",
+        "Manual" => Any[
+            "Example" => "man/example.md",
+            "man/guide.md",
+            "man/api.md"
+        ],
     ],
 )
 

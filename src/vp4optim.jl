@@ -9,41 +9,21 @@ gr()
 Abstract supertype of any model specification.
 
 # Type parameters
-- `Ny`::Int: length of data vector `y`.
-- `Nx`::Int: number of *variable* parameters.
+- `Ny::Int`: length of data vector `y`.
+- `Nx::Int`: number of *variable* parameters.
 - `Nc::Int`: number of linear coefficients.
-- `T <: Union{Float64, ComplexF64}`: `typeof(y)`
-
-# Recommended use
-
-```julia
-import VP4Optim as VP
-
-mutable struct SpecificModel{Ny,Nx,Nc,T} <: VP.Model{Ny,Nx,Nc,T}
-    # mandatory fields of any Model instance
-    sym::Vector{Symbol}         # names of all parameters, variable and fixed 
-    x_sym::Vector{Symbol}       # names of variable parameters
-    par_sym::Vector{Symbol}     # names of fixed parameters
-    val::Vector{Float64}        # values of all parameters, variable and fixed
-    x_ind::SVector{Nx,Int}      # indices of variable parameters in field val (order defined by x_sym)
-    par_ind::Vector{Int}        # indices of fixed parameters in field val (order defined by par_sym)
-    y::SVector{Ny,T}            # actual data vector
-    y2::Float64                 # == real(y' * y) (automatically calculated in generic method VP.y!)
-
-    # model-specific information
-    # ....
-end
-```
+- `T <: Union{Float64, ComplexF64}` is equal to `eltype(y)`
 """
 abstract type Model{Ny,Nx,Nc,T} end
 
 """
     sym(mod::Model)
 
-Return iterable of model parameter names (each with `type == Symbol`).
+Return *all* model parameter names (type: `Symbol`), variable and fixed.
 
-**All** model parameters are returned, variable and fixed ones.
-These are assumed to be stored in the field `sym` of `mod`.
+## Default
+
+- Returns `mod.sym::Vector{Symbol}`.
 """
 function sym(mod::Model)
     mod.sym
@@ -52,7 +32,11 @@ end
 """
     x_sym(mod::Model)
 
-Return iterable of **variable** model parameters.
+Return *variable* model parameter names.
+
+## Default
+
+- Returns `mod.x_sym::Vector{Symbol}`.
 """
 function x_sym(mod::Model)
     mod.x_sym
@@ -61,7 +45,11 @@ end
 """
     par_sym(mod::Model)
 
-Returns iterable of **fixed** model parameters.
+Returns *fixed* model parameter names.
+
+## Default
+
+- Returns `mod.par_sym::Vector{Symbol}`.
 """
 function par_sym(mod::Model)
     mod.par_sym
@@ -70,7 +58,11 @@ end
 """
     val(mod::Model)
 
-Returns vector (`::Vector{Float64}`) of **all** model parameters.
+Returns *all* model parameters.
+
+## Default
+
+- Returns `mod.val::Vector{Float64}`.
 """
 function val(mod::Model)
     mod.val
@@ -79,7 +71,11 @@ end
 """
     x(mod::Model)
 
-TBW
+Returns *variable* model parameters, according to the order specified in `mod.x_ind`.
+
+## Default
+
+- Returns `mod.val[mod.x_ind]::Vector{Float64}`.
 """
 function x(mod::Model)
     mod.val[mod.x_ind]
@@ -88,90 +84,148 @@ end
 """
     par(mod::Model)
 
-TBW
+Returns *fixed* model parameters, according to the order specified in `mod.par_ind`.
+
+## Default
+
+- Returns `mod.val[mod.par_ind]::Vector{Float64}`.
 """
 function par(mod::Model)
     mod.val[mod.par_ind]
 end
 
 """
-    x!(mod::Model, new_x::AbstractArray)
+    x!(mod::Model, x_syms::AbstractArray, x_vals::AbstractArray)
 
-TBW
+Resets those variable parameters, which are specified in `x_syms`,
+by the values in `x_vals`.
+
+## Default
+
+- Copies the values from `x_vals` into the associated locations.
+- Subsequently calls [x_changed!](@ref x_changed!) to trigger optional secondary actions.
+- Returns `nothing`.
 """
 function x!(mod::Model, x_syms::AbstractArray, x_vals::AbstractArray)
     for (sy, v) in zip(x_syms, x_vals)
         mod.val[findfirst(s -> s == sy, sym(mod))] = v
     end
     x_changed!(mod)
+    nothing
 end
 
 """
     x!(mod::Model, new_x::AbstractArray)
 
-TBW
+Resets *all* variable parameters by the values in `new_x`.
+
+## Default 
+
+- Copies the values from `new_x` into `val[x_ind]` (in this order).
+- Subsequently calls [x_changed!](@ref x_changed!) to trigger optional secondary actions.
+- Returns `nothing`.
 """
 function x!(mod::Model, new_x::AbstractArray)
     mod.val[mod.x_ind] = new_x
     x_changed!(mod)
+    nothing
 end
 
 """
     par!(mod::Model, p_syms::AbstractArray, p_vals::AbstractArray)
 
-TBW
+Resets those fixed parameters, which are specified in `par_syms`,
+by the values in `p_vals`.
+
+## Default 
+
+- Copies the values from `p_vals` into the associated locations.
+- Subsequently calls [par_changed!](@ref par_changed!) to trigger optional secondary actions.
+- Returns `nothing`.
 """
 function par!(mod::Model, p_syms::AbstractArray, p_vals::AbstractArray)
     for (p, v) in zip(p_syms, p_vals)
         mod.val[findfirst(s -> s == p, sym(mod))] = v
     end
     par_changed!(mod)
+    nothing
 end
 
 """
     par!(mod::Model, new_par::AbstractArray)
 
-Reset fixed parameter values.
+Resets *all* fixed parameters by the values in `new_par`.
+
+## Default 
+
+- Copies the values from `new_par` into `val[par_ind]` (in this order).
+- Subsequently calls [par_changed!](@ref par_changed!) to trigger optional secondary actions.
+- Returns `nothing`.
 """
 function par!(mod::Model, new_par::AbstractArray)
     mod.val[mod.par_ind] = new_par
     par_changed!(mod)
+    nothing
 end
 
 """
     x_changed!(::Model)
 
-TBW
+Informs user-defined model that `x` has changed.
+
+## Default
+
+- Does nothing.
+
+## Remarks
+
+- Can be used to recalculate any auxiliary model variable (such as `A`), which depends on `x`.
 """
 function x_changed!(::Model) end
 
 """
     par_changed!(::Model)
 
-Notify model that (some of the) fixed parameters `par` have changed.
+Informs user-defined model that `par` has changed.
 
-Function is automatically called by 
-Can be used to implement 
+## Default 
+
+- Does nothing.
+
+## Remarks
+
+- Can be used to recalculate any auxiliary model variable (such as `A`), which depends on `par`.
 """
 function par_changed!(::Model) end
 
 """
+    y(mod::Model)
+
+Returns the actual data vector.
+
+## Default
+
+- Returns `mod.y::SVector{Ny, T}`.
+"""
+function y(mod::Model)
+    mod.y
+end
+
+"""
     y!(mod::Model{Ny,Nx,Nc,T}, new_y::AbstractArray) where {Ny,Nx,Nc,T}
 
-Set the data vector.
+Sets new data values.
+
+## Default
+
+- Resets `mod.y::SVector{Ny, T}` with the content of `new_y`.
+- Calculates the squared magnitude of `mod.y` and stores the result in `mod.y2::Float64`.
+- Returns nothing.
 """
 function y!(mod::Model{Ny,Nx,Nc,T}, new_y::AbstractArray) where {Ny,Nx,Nc,T}
     mod.y = SVector{Ny,T}(new_y)
     mod.y2 = real(mod.y' * mod.y)
-end
-
-"""
-    y(mod::Model)
-
-Returns the data vector
-"""
-function y(mod::Model)
-    mod.y
+    nothing
 end
 
 """
@@ -179,7 +233,15 @@ end
 
 Return VARPRO matrix `A`.
 
-Must be implemented by each model.
+## Default
+
+- Returns `mod.A::SMatrix{Ny,Nc,T}`.
+
+## Remarks
+
+- The default implementation can only be used, if the field `mod.A` exists.
+- In that (recommended) scenario, the methods [x_changed!](@ref x_changed!) and [par_changed!](@ref par_changed!) trigger updates of `mod.A`.
+
 """
 function A(mod::Model)
     mod.A
@@ -190,8 +252,13 @@ end
 
 Return VARPRO vector `c`.
 
-Calculates generic soluion `c = B \\ b`.
-Can be replaced by model-specific implementation, if desired (e.g. for performance improvements).
+## Default
+
+- Gets `B` and `b` from [Bb!](@ref Bb!) and calculates generic solution `c = B \\ b`.
+
+## Remarks
+
+- Can be replaced by model-specific implementation, if desired (e.g. for performance improvements).
 """
 function c(mod::Model)
     (B, b) = Bb!(mod)
@@ -201,7 +268,18 @@ end
 """
     Bb!(mod::Model)
 
-TBW
+Return matrix `B = A' * A` and vector `b = A' * y`.
+
+## Default
+
+- Direct calculation, based upon methods [A](@ref A) and [y](@ref y).
+
+## Remarks
+
+- Can be replaced by model-specific implementation, to improve the performance.
+- Returns `(B, b)::Tuple`.
+- `typeof(B) == SMatrix{Nc,Nc,T}`
+- `typeof(b) == SVector{Nc,T}`
 """
 function Bb!(mod::Model)
     A_ = A(mod)
@@ -214,7 +292,20 @@ end
 """
     ∂Bb!(::Model)
 
-TBW
+Returns up to first order partial derivatives with respect to `x`.
+
+## Default
+
+- None, must be supplied by the user.
+
+## Remarks
+
+- Required for first order optimization techniques.
+- Returns `(B, b, ∂B, ∂b)::Tuple`.
+- `typeof(B) == SMatrix{Nc,Nc,T}`
+- `typeof(b) == SVector{Nc,T}`
+- `typeof(∂B) == SVector{Nx, SMatrix{Nc,Nc,T}}`
+- `typeof(∂b) == SVector{Nx, SVector{Nc,T}}`
 """
 function ∂Bb!(::Model)
     error("Missing implementation of ∂Bb!")
@@ -223,7 +314,22 @@ end
 """
     ∂∂Bb!(::Model)
 
-TBW
+Returns up to second order partial derivatives with respect to `x`
+
+## Default
+
+- None, must be supplied by the user.
+
+## Remarks
+
+- Required for second order optimization techniques.
+- Returns `(B, b, ∂B, ∂b, ∂∂B, ∂∂b)::Tuple`.
+- `typeof(B) == SMatrix{Nc,Nc,T}`
+- `typeof(b) == SVector{Nc,T}`
+- `typeof(∂B) == SVector{Nx, SMatrix{Nc,Nc,T}}`
+- `typeof(∂b) == SVector{Nx, SVector{Nc,T}}`
+- `typeof(∂∂B) == SMatrix{Nx, Nx, SMatrix{Nc,Nc,T}}`
+- `typeof(∂∂b) == SMatrix{Nx, Nx, SVector{Nc,T}}`
 """
 function ∂∂Bb!(::Model)
     error("Missing implementation of ∂∂Bb!")
@@ -233,7 +339,16 @@ end
 """
     y_model(mod::Model)
 
-Compute model prediction `A(mod) * c(mod)` at actual `x`.
+Compute model prediction `A(x) * c`.
+
+## Default
+
+- Calculates the product of the methods [A](@ref A) and [c](@ref c)
+
+## Remarks
+
+- Return type `== SVector{Ny,T}`
+- Can be used to check the model or generate synthetic data.
 """
 function y_model(mod::Model)
     A(mod) * c(mod)
@@ -242,17 +357,26 @@ end
 """
     χ2(mod::Model)
 
-Return `χ²` of actual model.
+Return `χ² = y² - b' * B * b` of actual model.
+
+## Default
+
+- Uses `mod.y2` and `(B, b)` from [Bb!](@ref Bb!) to directly calculate the expression.
 """
 function χ2(mod::Model)
     (B, b) = Bb!(mod)
     f(mod.y2, B, b)
-end    
+end 
 
 """
     f(mod::Model)
 
 Return function `f` of argument `x` to be minimized, as expected by Optim.jl
+
+## Remark
+
+- Returns anonymous function `x -> ...` (cf. [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl))
+- Depends on [Bb!](@ref Bb!).
 """
 function f(mod::Model)
     x -> begin
@@ -266,6 +390,11 @@ end
     fg!(mod::Model)
 
 Return function `fg!` of three arguments `(F, G, x)` as expected by Optim.jl.
+
+## Remark
+
+- Returns anonymous function `(F, G, x) -> ...` (cf. [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl))
+- Depends on [Bb!](@ref Bb!) and [∂Bb!](@ref ∂Bb!).
 """
 function fg!(mod::Model)
     (F, G, x) -> begin
@@ -286,6 +415,11 @@ end
     fgh!(mod::Model)
 
 Return function `fgh!` of four arguments `(F, G, H, x)` as expected by Optim.jl.
+
+## Remark
+
+- Returns anonymous function `(F, G, H, x) -> ...` (cf. [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl))
+- Depends on [Bb!](@ref Bb!), [∂Bb!](@ref ∂Bb!) and [∂∂Bb!](@ref ∂∂Bb!).
 """
 function fgh!(mod::Model)
     (F, G, H, x) -> begin
@@ -308,9 +442,11 @@ end
 """
     P(mod::Model{Ny,Nx,Nc,T}, x) where {Ny,Nx,Nc,T}
 
-Returns Hessian of model `mod` at `x`.
+Returns Hessian of ``χ²(x)``.
 
-Can be used as preconditioner.
+## Remark
+
+- Can be used as preconditioner, as expected by [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl).
 """
 function P(mod::Model{Ny,Nx,Nc,T}, x) where {Ny,Nx,Nc,T}
     H = Matrix{T}(undef, Nx, Nx)
@@ -318,21 +454,27 @@ function P(mod::Model{Ny,Nx,Nc,T}, x) where {Ny,Nx,Nc,T}
     H
 end
 
-#Helper function for [`f(mod::Model)`](@ref).
 """
     f(y2, B, b)
 
-Should not be called directly.
+Helper function for [`f(::Model)`](@ref f(::Model)).
+
+## Remark
+
+- Should not be called directly.
 """
-function f(y2, B, b)
+function f(y2::Float64, B::AbstractArray, b::AbstractArray)
     y2 - real(b' * (B \ b))
 end
 
-#Helper function for [`fg!(mod::Model)`](@ref).
 """
     fg!(::Model{Ny,Nx,Nc,T}, F, G, y2, B, b, ∂B, ∂b) where {Ny,Nx,Nc,T}
 
-Should not be called directly.
+Helper function for [`fg!(mod::Model)`](@ref fg!(::Model)).
+
+## Remark
+
+- Should not be called directly.
 """
 function fg!(::Model{Ny,Nx,Nc,T}, F, G, y2, B, b, ∂B, ∂b) where {Ny,Nx,Nc,T}
     c = B \ b
@@ -346,11 +488,14 @@ function fg!(::Model{Ny,Nx,Nc,T}, F, G, y2, B, b, ∂B, ∂b) where {Ny,Nx,Nc,T}
     end
 end
 
-#Helper function for [`fgh!(mod::Model)`](@ref).
 """
     fgh!(::Model{Ny,Nx,Nc,T}, F, G, H, y2, B, b, ∂B, ∂b, ∂∂B, ∂∂b) where {Ny,Nx,Nc,T}
 
-Should not be called directly.
+Helper function for [`fgh!(mod::Model)`](@ref fgh!(::Model)).
+
+## Remark
+
+- Should not be called directly.
 """
 function fgh!(::Model{Ny,Nx,Nc,T}, F, G, H, y2, B, b, ∂B, ∂b, ∂∂B, ∂∂b) where {Ny,Nx,Nc,T}
     c = B \ b

@@ -3,6 +3,9 @@ import VP4Optim as VP
 
 include("BiExpDecay.jl")
 
+# visual confirmation of derivatives
+visual = false
+
 # check out all nonempty combinations x_sym ⊆ sym
 ts = collect(range(0, 5, 10)) # time points
 sym = [:reR1, :imR1, :reR2, :imR2] # nonlinear variables: two complex relaxation rates
@@ -17,11 +20,11 @@ y = VP.A(bi) * c # calculate model data at time points ts (required by test func
 
 # starting values for optimization
 x0 = 0.9x  # relaxation rates
-lx = zeros(4) # lower bounds
-ux = ones(4) # upper bounds
+lx = [0, -π, 0, -π] # lower bounds
+ux = [1, π, 1, π] # upper bounds
 
 # what to test
-what = (:consistency,) #, :derivatives, :optimization)
+what = (:consistency, :derivatives, :optimization)
 
 # do the tests
-res = VP.check_model(BiExpDecay, args, x, c, y, what = what, x0 = x0, lx = lx, ux = ux)
+res = VP.check_model(BiExpDecay, args, x, c, y, what = what, x0 = x0, lx = lx, ux = ux, visual = visual)
