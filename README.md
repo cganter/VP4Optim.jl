@@ -15,7 +15,7 @@ For least-squares minimization problems of the form
 variable projection ([VARPRO](https://doi.org/10.1137/0710036)) is an established technique to eliminate 
 the linear coefficients $\mathbf{c}$, thereby reducing the dimensionality of the optimization space.
 
-The [VP4Optim](https://github.com/cganter/VP4Optim.jl) package provides some tools to simplify the implementation of VARPRO in Julia.
+The VP4Optim package provides some tools to simplify the implementation of VARPRO in Julia.
 
 ## Installation
 
