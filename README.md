@@ -8,9 +8,9 @@
 
 For least-squares minimization problems of the form
 ```math
-\hat{\bm{x}}, \hat{\bm{c}} \;=\;
-\underset{\bm{x}, \bm{c}}{\mathop{\text{argmin}}}\;
-\left\|\,\bm{y} - \bm{A}(\bm{x}) \cdot \bm{c}\,\right\|^2_2
+\hat{\mathbf{x}}, \hat{\mathbf{c}} \;=\;
+\underset{\mathbf{x}, \mathbf{c}}{\mathop{\text{argmin}}}\;
+\left\|\,\mathbf{y} - \mathbf{A}(\mathbf{x}) \cdot \mathbf{c}\,\right\|^2_2
 ```
 variable projection ([VARPRO](https://doi.org/10.1137/0710036)) is an established technique to eliminate 
 the linear coefficients $\mathbf{c}$, thereby reducing the dimensionality of the optimization space.
