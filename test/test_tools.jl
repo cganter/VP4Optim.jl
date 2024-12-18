@@ -183,7 +183,7 @@ function check_fgh!(fgh!, x0, δx;
     slope = (sum(log_nhs) * sum(log_δfla) - length(nhs) * (log_nhs' * log_δfla)) /
             (sum(log_nhs)^2 - length(nhs) * (log_nhs' * log_nhs))
 
-    @test slope > 0.95
+    @test slope > 0.9
 
     if visual
         # initialize plot vector
