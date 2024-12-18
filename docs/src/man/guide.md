@@ -55,7 +55,7 @@ mutable struct SpecificModel{Ny,Nx,Nc} <: VP.Model{Ny,Nx,Nc,ComplexF64}
     val::Vector{Float64}
     
     # indices of variable parameters in field val
-    # Example: x_ind == SVector{Nx}[4, 1, 3] (according to the definition of x_sym above)
+    # Example: x_ind == SVector{Nx}([4, 1, 3]) (according to the definition of x_sym above)
     # such that
     # x_sym[1] == sym[x_ind[1]] == sym[4] == :d
     # val[x_ind[1]] == val[4] == d
