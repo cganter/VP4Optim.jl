@@ -9,11 +9,11 @@
 For least-squares minimization problems of the form
 ```math
 \hat{\bm{x}}, \hat{\bm{c}} \;=\;
-\underset{\bm{x}, \bm{c}}{\operatorname{argmin}}\;
+\underset{\bm{x}, \bm{c}}{\mathop{\text{argmin}}}\;
 \left\|\,\bm{y} - \bm{A}(\bm{x}) \cdot \bm{c}\,\right\|^2_2
 ```
 variable projection ([VARPRO](https://doi.org/10.1137/0710036)) is an established technique to eliminate 
-the linear coefficients $\bm{c}$, thereby reducing the dimensionality of the optimization space.
+the linear coefficients $\mathbf{c}$, thereby reducing the dimensionality of the optimization space.
 
 The [VP4Optim](https://github.com/cganter/VP4Optim.jl) package provides some tools to simplify the implementation of VARPRO in Julia.
 
@@ -23,5 +23,6 @@ The package is not registered yet. Until then, just clone it and add it to your 
 
 ## Contributing
 
-Feedback and bug reports, which adhere to the [Julia Community Standards](https://julialang.org/community/standards/) are welcome.
+Feedback and bug reports, which adhere to the 
+[Julia Community Standards](https://julialang.org/community/standards/), are welcome.
 
