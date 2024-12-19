@@ -107,6 +107,7 @@ by the values in `x_vals`.
 - Returns `nothing`.
 """
 function x!(mod::Model, x_syms::AbstractArray, x_vals::AbstractArray)
+    @assert all(sy -> sy ∈ x_sym(mod), x_syms)
     for (sy, v) in zip(x_syms, x_vals)
         mod.val[findfirst(s -> s == sy, sym(mod))] = v
     end
@@ -144,8 +145,9 @@ by the values in `p_vals`.
 - Returns `nothing`.
 """
 function par!(mod::Model, p_syms::AbstractArray, p_vals::AbstractArray)
-    for (p, v) in zip(p_syms, p_vals)
-        mod.val[findfirst(s -> s == p, sym(mod))] = v
+    @assert all(sy -> sy ∈ par_sym(mod), p_syms)
+    for (sy, v) in zip(p_syms, p_vals)
+        mod.val[findfirst(s -> s == sy, sym(mod))] = v
     end
     par_changed!(mod)
     nothing

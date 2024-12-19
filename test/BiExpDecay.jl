@@ -18,6 +18,8 @@ mutable struct BiExpDecay{Ny,Nx} <: VP.Model{Ny,Nx,2,ComplexF64}
     y::SVector{Ny,ComplexF64}
     "Mandatory field: Actual value of `y' * y`"
     y2::Float64
+    "Recommended field for matrix A"
+    A::SMatrix{Ny,2,ComplexF64}
 
     # model specific information
     ts::SVector{Ny,Float64}
@@ -48,6 +50,7 @@ function BiExpDecay(::Val{Ny}, ::Val{Nx}, ts, sym, x_sym) where {Ny,Nx}
     par_ind = filter(x -> x ∉ x_ind, 1:4)
     par_sym = sym[par_ind]
     y = SVector{Ny,ComplexF64}(zeros(ComplexF64, Ny))
+    A = SMatrix{Ny,2}(zeros(ComplexF64, Ny, 2))
     ts = SVector{Ny,Float64}(ts)
     cR = SVector{2,ComplexF64}(zeros(ComplexF64, 2))
 
@@ -74,24 +77,26 @@ function BiExpDecay(::Val{Ny}, ::Val{Nx}, ts, sym, x_sym) where {Ny,Nx}
     ∂∂b_weights = SMatrix{Nx,Nx,SVector{2,ComplexF64}}(
         ∂b_weights[i] .* ∂b_weights[j] for i in 1:Nx, j in 1:Nx)
 
-    BiExpDecay{Ny,Nx}(sym, x_sym, par_sym, val, x_ind, par_ind, y, 0.0, ts, cR, 
+    BiExpDecay{Ny,Nx}(sym, x_sym, par_sym, val, x_ind, par_ind, y, 0.0, A, ts, cR, 
         ∂B_weights, ∂b_weights, ∂∂B_weights, ∂∂b_weights)
 end
 
 function VP.x_changed!(bi::BiExpDecay)
     cR!(bi)
+    A!(bi)
 end
 
 function VP.par_changed!(bi::BiExpDecay)
     cR!(bi)
+    A!(bi)
 end
 
 function cR!(bi::BiExpDecay)
     bi.cR = SVector{2,ComplexF64}(bi.val[i] + im * bi.val[i+1] for i in (1, 3))
 end
 
-function VP.A(bi::BiExpDecay)
-    exp.(-transpose(bi.cR) .* bi.ts)
+function A!(bi::BiExpDecay)
+    bi.A = exp.(-transpose(bi.cR) .* bi.ts)
 end
 
 function VP.Bb!(bi::BiExpDecay)

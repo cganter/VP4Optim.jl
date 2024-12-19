@@ -1,7 +1,7 @@
-using LinearAlgebra, Combinatorics, Test, Optim
+using LinearAlgebra, Combinatorics, Test, Optim, Random
 
 """
-    check_model(modcon, args, val, c_, y_;
+    check_model(modcon, args, vals, c_, y_;
     what=(:consistency, :derivatives, :optimization),
     small=sqrt(eps()),
     x0=[], lx=[], ux=[],
@@ -13,9 +13,9 @@ Tests, which any specific model should pass.
 # Arguments
 - `modcon::Function`: Constructor to the model to be tested.
 - `args::Tuple`: Arguments, as expected by constructor, like `modcon(args...)` or `modcon(args; x_sym=x_sym)`.
-- `val::Vector{Float64}`: *All* nonlinear parameters, the model depends on. As defined in the `Model` field `val`.
+- `vals::Vector{Float64}`: *All* nonlinear parameters, the model depends on. As defined in the `Model` field `val`.
 - `c_::Vector{Nc, T}`: Linear cofficients, the model depends on.
-- `y_::Vector{T}`: Data, corresponding to the *true* parameters `val` and `c_`. 
+- `y_::Vector{T}`: Data, corresponding to the *true* parameters `vals` and `c_`. 
 - `what::Tuple{Symbol}`: Tests to be performed (see below).
 - `small::Float64`: Required as accuracy criterion.
 - `x0::Vector{Float64}`: Starting point for optimization and location, where derivatives are tested.
@@ -33,7 +33,7 @@ Tests, which any specific model should pass.
 - `:optimization ∈ what`: Minimize model with `x0` as starting point and bounds `lx` and `ux`.
 - An example application can be found in [`test_BiExpDecay.jl`](https://github.com/cganter/VP4Optim.jl/blob/main/test/test_BiExpDecay.jl). This should also work as a template, how to perform tests on own models.
 """
-function check_model(modcon, args, val, c_, y_;
+function check_model(modcon, args, vals, c_, y_;
     what=(:consistency, :derivatives, :optimization),
     small=sqrt(eps()),
     x0=[], lx=[], ux=[],
@@ -46,15 +46,15 @@ function check_model(modcon, args, val, c_, y_;
     for xsy in Combinatorics.powerset(syms, 1)
         mod = modcon(args...; x_sym=xsy)
         d[xsy] = Dict()
-        d[xsy][:check_subset_args] = (mod, xsy, val, c_, y_, what, small, x0, lx, ux, precon, d[xsy])
-        check_subset(mod, xsy, val, c_, y_, what, small, x0, lx, ux, precon, d[xsy], visual)
+        d[xsy][:check_subset_args] = (mod, xsy, vals, c_, y_, what, small, x0, lx, ux, precon, d[xsy])
+        check_subset(mod, xsy, vals, c_, y_, what, small, x0, lx, ux, precon, d[xsy], visual)
     end
 
     return d
 end
 
 """
-    check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, val, c_, y_, what, small, x0, lx, ux, precon, d, visual) where {Ny,Nx,Nc,T}
+    check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0, lx, ux, precon, d, visual) where {Ny,Nx,Nc,T}
 
 Helper function of [`check_model`](@ref check_model), which performs the tests for a given subset `x_sym ⊆ sym`.
 
@@ -62,21 +62,48 @@ Helper function of [`check_model`](@ref check_model), which performs the tests f
 
 - Should not be called directly.
 """
-function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, val, c_, y_, what, small, x0, lx, ux, precon, d, visual) where {Ny,Nx,Nc,T}
+function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0, lx, ux, precon, d, visual) where {Ny,Nx,Nc,T}
     @assert all(w -> w ∈ (:consistency, :derivatives, :optimization), what)
 
     y!(mod, y_)
-    x_, par_, x0_ = val[mod.x_ind], val[mod.par_ind], x0[mod.x_ind]
+    x_, par_, x0_ = vals[mod.x_ind], vals[mod.par_ind], x0[mod.x_ind]
     x!(mod, x_)
     par!(mod, par_)
 
     # consistency checks at the minimum, i.e. for y_ = A(x_) * c_
     if :consistency ∈ what
-        # are variable names set correctly
-        @test x_sym(mod) == xsy
+        # mandatory field values are set and returned correctly
+        @test sym(mod) == mod.sym
+        @test x_sym(mod) == mod.x_sym == xsy
         psy = filter(x -> x ∉ xsy, sym(mod))
-        # are fixed parameter names set correctly
-        @test par_sym(mod) == psy
+        @test par_sym(mod) == mod.par_sym == psy
+        @test val(mod) == mod.val
+        @test x(mod) == val(mod)[mod.x_ind]
+        @test par(mod) == val(mod)[mod.par_ind]
+        @test y(mod) == mod.y
+        @test real(y(mod)' * y(mod)) ≈ mod.y2
+        @test A(mod) == mod.A
+        # tests for x! and par!
+        for is in powerset(1:length(mod.x_ind))
+            is = is[randperm(length(is))]
+            x!(mod, x_sym(mod)[is], x_[is])
+            @test x_ == x(mod) && par_ == par(mod)
+        end
+        for is in powerset(1:length(mod.par_ind))
+            is = is[randperm(length(is))]
+            par!(mod, par_sym(mod)[is], par_[is])
+            @test x_ == x(mod) && par_ == par(mod)
+        end
+        for sys in powerset(sym(mod), 1)
+            any(sy -> sy ∉ x_sym(mod), sys) && 
+                (@test_throws Exception x!(mod, sy, rand(length(sy))))
+                
+            any(sy -> sy ∉ par_sym(mod), sys) && 
+                (@test_throws Exception par!(mod, sy, rand(length(sy))))
+        end
+        # be sure to undo any unwanted changes
+        x!(mod, x_)
+        par!(mod, par_)
         # do we cover all parameters
         @test length(par(mod)) + length(x(mod)) == length(sym(mod))
         # are the variables set correctly
@@ -89,6 +116,15 @@ function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, val, c_, y_, what, small, x0,
         @test y_model(mod) ≈ y(mod) == y_
         # the correct linear coefficients are obtained
         @test c(mod) ≈ c_
+        # test correct evaluation of B and b
+        A_ = A(mod)
+        B = A_' * A_
+        b = A_' * y(mod)
+        @test all(Bb!(mod) .≈ (B, b))
+        # test that f returns χ²
+        x!(mod, x0_)
+        @test χ2(mod) ≈ f(mod)(x0_)
+        x!(mod, x_)
     end
 
     # derivatives are tested at x0_ ≠ x_
