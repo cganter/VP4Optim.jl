@@ -20,7 +20,18 @@ The VP4Optim package provides some tools to simplify the implementation of VARPR
 
 ## Installation
 
-The package is not registered yet. Until then, just clone it and add it to your load path.
+The package can be installed with the Julia package manager.
+From the Julia REPL, type `]` to enter the Pkg REPL mode and either run
+
+```
+pkg> add VP4Optim
+```
+
+or
+
+```julia
+julia> import Pkg; Pkg.add("VP4Optim")
+```
 
 ## Contributing
 

@@ -5,6 +5,7 @@ version = "1.0.0"
 
 [deps]
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
+Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
 DocumenterTools = "35a29f4d-8980-5a13-9543-d66fff28ecb8"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
@@ -16,6 +17,7 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
 Combinatorics = "1.0.2"
+Compat = "4.16.0"
 DocumenterTools = "0.1.20"
 LinearAlgebra = "1.11.0"
 Optim = "1.10.0"

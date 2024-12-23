@@ -6,7 +6,12 @@ CurrentModule = VP4Optim
 
 ## Installation
 
-The package will soon be registered. Until then, just clone it and add it to your load path.
+The package can be installed with the Julia package manager.
+From the Julia REPL, type `]` to enter the Pkg REPL mode and run
+
+```
+pkg> add VP4Optim
+```
 
 ## Model definition
 

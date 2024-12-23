@@ -1,4 +1,5 @@
-using LinearAlgebra, Combinatorics, Test, Optim, Random
+using LinearAlgebra, Combinatorics, Test, Optim, Random, Compat
+@compat public check_model
 
 """
     check_model(modcon, args, vals, c_, y_;
