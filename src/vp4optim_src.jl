@@ -466,7 +466,7 @@ Helper function for [`f(::Model)`](@ref f(::Model)).
 
 - Should not be called directly.
 """
-function f(y2::Float64, B::AbstractArray, b::AbstractArray)
+function f(y2::Float64, B, b)
     y2 - real(b' * (B \ b))
 end
 
