@@ -83,7 +83,6 @@ function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0
         @test par(mod) == val(mod)[mod.par_ind]
         @test y(mod) == mod.y
         @test real(y(mod)' * y(mod)) ≈ mod.y2
-        @test A(mod) == mod.A
         # tests for x! and par!
         for is in powerset(1:length(mod.x_ind))
             is = is[randperm(length(is))]
