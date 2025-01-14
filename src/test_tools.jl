@@ -5,7 +5,7 @@ using LinearAlgebra, Combinatorics, Test, Optim, Random, Compat
     check_model(modcon, args, vals, c_, y_;
     what=(:consistency, :derivatives, :optimization),
     small=sqrt(eps()),
-    x0=[], lx=[], ux=[],
+    x0=[], lx=[], ux=[], x_scale=[],
     precon=true,
     visual=false)
 
@@ -22,6 +22,7 @@ Tests, which any specific model should pass.
 - `x0::Vector{Float64}`: Starting point for optimization and location, where derivatives are tested.
 - `lx::Vector{Float64}`: Lower bound of optimization
 - `ux::Vector{Float64}`: Upper bound of optimization
+- 'x_scale::Vector{Float64}': Scaling vector, such that 'δx = randn(size(x)) .* x_scale' becomes reasonable
 - `precon::Bool`: Test optimization with and without preconditioner.
 - `visual::Bool`: If `true` also generate double-logarithmic plots for the derivative tests.
 
@@ -37,18 +38,21 @@ Tests, which any specific model should pass.
 function check_model(modcon, args, vals, c_, y_;
     what=(:consistency, :derivatives, :optimization),
     small=sqrt(eps()),
-    x0=[], lx=[], ux=[],
+    x0=[], lx=[], ux=[], x_scale=[],
     precon=true,
     visual=false)
     mod = modcon(args...)
     syms = sym(mod)
     d = Dict()
-
+    
+    isempty(x_scale) && (x_scale = ones(length(syms)))
+    @assert length(x_scale) == length(syms) && all(x_scale .> 0)
+    
     for xsy in Combinatorics.powerset(syms, 1)
         mod = modcon(args...; x_sym=xsy)
         d[xsy] = Dict()
         d[xsy][:check_subset_args] = (mod, xsy, vals, c_, y_, what, small, x0, lx, ux, precon, d[xsy])
-        check_subset(mod, xsy, vals, c_, y_, what, small, x0, lx, ux, precon, d[xsy], visual)
+        check_subset(mod, xsy, vals, c_, y_, what, small, x0, lx, ux, x_scale, precon, d[xsy], visual)
     end
 
     return d
@@ -63,11 +67,11 @@ Helper function of [`check_model`](@ref check_model), which performs the tests f
 
 - Should not be called directly.
 """
-function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0, lx, ux, precon, d, visual) where {Ny,Nx,Nc,T}
+function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0, lx, ux, x_scale, precon, d, visual) where {Ny,Nx,Nc,T}
     @assert all(w -> w ∈ (:consistency, :derivatives, :optimization), what)
 
     y!(mod, y_)
-    x_, par_, x0_ = vals[mod.x_ind], vals[mod.par_ind], x0[mod.x_ind]
+    x_, par_, x0_, x_scale_ = vals[mod.x_ind], vals[mod.par_ind], x0[mod.x_ind], x_scale[mod.x_ind]
     x!(mod, x_)
     par!(mod, par_)
 
@@ -129,7 +133,7 @@ function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0
 
     # derivatives are tested at x0_ ≠ x_
     if :derivatives ∈ what
-        δx = randn(length(x_))
+        δx = randn(length(x_)) .* x_scale_
         title = ""
         for sy in x_sym(mod)
             title *= " " * string(sy)
@@ -181,7 +185,6 @@ function check_fgh!(fgh!, x0, δx;
     H0 = zeros(eltype(x0), lx, lx)
 
     # set up values, where the function shall be evaluated
-    δx *= norm(x0) / norm(δx)    # make the norms of x0 and δx equal
     hs = [lr * δx for lr in log_rng]
     nhs = [norm(h) for h in hs]   # norm of h
 

@@ -22,9 +22,10 @@ y = VP.A(bi) * c # calculate model data at time points ts (required by test func
 x0 = 0.9x  # relaxation rates
 lx = [0, -π, 0, -π] # lower bounds
 ux = [1, π, 1, π] # upper bounds
+x_scale = ux - lx # to make different parameters comparable
 
 # what to test
 what = (:consistency, :derivatives, :optimization)
 
 # do the tests
-res = VP.check_model(BiExpDecay, args, x, c, y, what = what, x0 = x0, lx = lx, ux = ux, visual = visual)
+res = VP.check_model(BiExpDecay, args, x, c, y, what = what, x0 = x0, lx = lx, ux = ux, x_scale = x_scale, visual = visual)
