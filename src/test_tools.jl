@@ -22,7 +22,7 @@ Tests, which any specific model should pass.
 - `x0::Vector{Float64}`: Starting point for optimization and location, where derivatives are tested.
 - `lx::Vector{Float64}`: Lower bound of optimization
 - `ux::Vector{Float64}`: Upper bound of optimization
-- 'x_scale::Vector{Float64}': Scaling vector, such that 'δx = randn(size(x)) .* x_scale' becomes reasonable
+- `x_scale::Vector{Float64}`: Scaling vector, such that `δx = randn(size(x)) .* x_scale` becomes reasonable
 - `precon::Bool`: Test optimization with and without preconditioner.
 - `visual::Bool`: If `true` also generate double-logarithmic plots for the derivative tests.
 
@@ -120,11 +120,6 @@ function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0
         @test y_model(mod) ≈ y(mod) == y_
         # the correct linear coefficients are obtained
         @test c(mod) ≈ c_
-        # test correct evaluation of B and b
-        A_ = A(mod)
-        B = A_' * A_
-        b = A_' * y(mod)
-        @test all(Bb!(mod) .≈ (B, b))
         # test that f returns χ²
         x!(mod, x0_)
         @test χ2(mod) ≈ f(mod)(x0_)

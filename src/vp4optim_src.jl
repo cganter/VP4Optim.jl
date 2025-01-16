@@ -1,8 +1,8 @@
 using LinearAlgebra, StaticArrays, Compat
 using Plots: gr, plot, scatter!
 gr()
-@compat public Model, sym, x_sym, par_sym, val, x, par, x!, par!, x_changed!, par_changed!, 
-    y, y!, A, c, Bb!, ∂Bb!, ∂∂Bb!, y_model, χ2, f, fg!, fgh!, P
+@compat public Model, sym, x_sym, par_sym, val, x, par, x!, par!, x_changed!, par_changed!,
+y, y!, A, c, Bb!, ∂Bb!, ∂∂Bb!, y_model, χ2, f, fg!, fgh!, P
 
 """
     Model{Ny,Nx,Nc,T}
@@ -238,16 +238,21 @@ Return VARPRO matrix `A`.
 
 ## Default
 
-- Returns `mod.A::SMatrix{Ny,Nc,T}`.
+- Returns `mod.A`, if the field exists and 'nothing' otherwise
 
 ## Remarks
 
-- The default implementation can only be used, if the field `mod.A` exists.
-- In that (recommended) scenario, the methods [x_changed!](@ref x_changed!) and [par_changed!](@ref par_changed!) trigger updates of `mod.A`.
-
+- Implementation is not mandatory,
+- Can be replaced by model-specific implementation, if the field `mod.A` does not exist.
+- In that scenario, the methods [x_changed!](@ref x_changed!) and [par_changed!](@ref par_changed!) trigger updates of `mod.A`.
+- if the models exhibit redundancy , the return type can be
 """
 function A(mod::Model)
-    mod.A
+    if hasfield(typeof(mod), :A)
+        mod.A
+    else
+        nothing
+    end
 end
 
 """
@@ -279,17 +284,17 @@ Return matrix `B = A' * A` and vector `b = A' * y`.
 
 ## Remarks
 
+- Mandatory routine for the calculation of `χ²` (and its derivatives)
 - Can be replaced by model-specific implementation, to improve the performance.
-- Returns `(B, b)::Tuple`.
-- `typeof(B) == SMatrix{Nc,Nc,T}`
-- `typeof(b) == SVector{Nc,T}`
+- Expected to return `(B, b)::Tuple`.
+- For general models, the return types could be `B::SMatrix{Nc,Nc,T}` and `b::SVector{Nc,T}`
+- In most cases, model-specific implementations will be more efficient though.
 """
 function Bb!(mod::Model)
     A_ = A(mod)
     B = A_' * A_
     b = A_' * y(mod)
-
-    return (B, b)
+    (B, b)
 end
 
 """
@@ -304,11 +309,10 @@ Returns up to first order partial derivatives with respect to `x`.
 ## Remarks
 
 - Required for first order optimization techniques.
-- Returns `(B, b, ∂B, ∂b)::Tuple`.
-- `typeof(B) == SMatrix{Nc,Nc,T}`
-- `typeof(b) == SVector{Nc,T}`
-- `typeof(∂B) == SVector{Nx, SMatrix{Nc,Nc,T}}`
-- `typeof(∂b) == SVector{Nx, SVector{Nc,T}}`
+- Returns `(B, b, ∂B, ∂b)::Tuple`
+- `(B, b)` as returned from [Bb!](@ref Bb!)
+- Types: `∂B::SVector{Nx, SMatrix{Nc,Nc,T}}` and `∂b::SVector{Nx, SVector{Nc,T}}`
+- (or anything, which works with the implementation of [fg!](@ref) and [fgh!](@ref fgh!))
 """
 function ∂Bb!(::Model)
     error("Missing implementation of ∂Bb!")
@@ -326,13 +330,10 @@ Returns up to second order partial derivatives with respect to `x`
 ## Remarks
 
 - Required for second order optimization techniques.
-- Returns `(B, b, ∂B, ∂b, ∂∂B, ∂∂b)::Tuple`.
-- `typeof(B) == SMatrix{Nc,Nc,T}`
-- `typeof(b) == SVector{Nc,T}`
-- `typeof(∂B) == SVector{Nx, SMatrix{Nc,Nc,T}}`
-- `typeof(∂b) == SVector{Nx, SVector{Nc,T}}`
-- `typeof(∂∂B) == SMatrix{Nx, Nx, SMatrix{Nc,Nc,T}}`
-- `typeof(∂∂b) == SMatrix{Nx, Nx, SVector{Nc,T}}`
+- Returns `(B, b, ∂B, ∂b, ∂∂B, ∂∂b)::Tuple`
+- `(B, b, ∂B, ∂b)` as returned from [∂Bb!](@ref ∂Bb!)
+- Types: `∂∂B::SMatrix{Nx, Nx, SMatrix{Nc,Nc,T}}` and `∂∂b::SMatrix{Nx, Nx, SVector{Nc,T}}`
+- (or anything, which works with the implementation of [fgh!](@ref fgh!))
 """
 function ∂∂Bb!(::Model)
     error("Missing implementation of ∂∂Bb!")
@@ -352,6 +353,7 @@ Compute model prediction `A(x) * c`.
 
 - Return type `== SVector{Ny,T}`
 - Can be used to check the model or generate synthetic data.
+- If necessary, a model-specific implementation may be needed. (e.g., if the method [A](@ref A) has not be implemented.)
 """
 function y_model(mod::Model)
     A(mod) * c(mod)
@@ -360,7 +362,7 @@ end
 """
     χ2(mod::Model)
 
-Return `χ² = y² - b' * B * b` of actual model.
+Return `χ² = y² - b' * (B \\ b)` of actual model.
 
 ## Default
 
@@ -369,7 +371,7 @@ Return `χ² = y² - b' * B * b` of actual model.
 function χ2(mod::Model)
     (B, b) = Bb!(mod)
     f(mod.y2, B, b)
-end 
+end
 
 """
     f(mod::Model)

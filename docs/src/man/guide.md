@@ -196,6 +196,16 @@ These methods provide an interface to VARPRO, as described in [Variable Projecti
 ```@docs
 A
 Bb!
+```
+
+!!! note
+    As long as `y^2 - b' * (B \ b)` gives the correct result (`χ2`), everything should be fine.\
+    The same is true for the partial derivatives.
+
+    In case of doubt, look at how  [f](@ref f), [fg!](@ref fg!) and [fgh!](@ref fgh!) are 
+    implemented in the source code.
+
+```@docs
 c
 y_model
 χ2

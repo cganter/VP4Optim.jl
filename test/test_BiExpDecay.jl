@@ -22,7 +22,9 @@ y = VP.A(bi) * c # calculate model data at time points ts (required by test func
 x0 = 0.9x  # relaxation rates
 lx = [0, -π, 0, -π] # lower bounds
 ux = [1, π, 1, π] # upper bounds
-x_scale = ux - lx # to make different parameters comparable
+
+# relative scale of parameters
+x_scale = ux - lx # to make different parameters more comparable
 
 # what to test
 what = (:consistency, :derivatives, :optimization)
