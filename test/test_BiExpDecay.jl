@@ -12,6 +12,9 @@ rng = MersenneTwister(42)
 # include Hessian in derivative test
 Hessian = true
 
+# minimal slope
+min_slope = 0.8
+
 # check out all nonempty combinations x_sym ⊆ sym
 ts = collect(range(0, 5, 10)) # time points
 sym = [:reR1, :imR1, :reR2, :imR2] # nonlinear variables: two complex relaxation rates
@@ -36,5 +39,5 @@ x_scale = ux - lx # to make different parameters more comparable
 what = (:consistency, :derivatives, :optimization)
 
 # do the tests
-res = VP.check_model(BiExpDecay, args, x, c, y, what = what, x0 = x0, lx = lx, ux = ux, x_scale = x_scale, visual = visual, rng = rng, Hessian = Hessian)
+res = VP.check_model(BiExpDecay, args, x, c, y, what = what, x0 = x0, lx = lx, ux = ux, x_scale = x_scale, visual = visual, rng = rng, Hessian = Hessian, min_slope = min_slope)
 
