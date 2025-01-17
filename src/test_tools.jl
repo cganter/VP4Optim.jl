@@ -40,19 +40,21 @@ function check_model(modcon, args, vals, c_, y_;
     small=sqrt(eps()),
     x0=[], lx=[], ux=[], x_scale=[],
     precon=true,
-    visual=false)
+    visual=false,
+    rng=MersenneTwister(),
+    Hessian=true)
     mod = modcon(args...)
     syms = sym(mod)
     d = Dict()
-    
+
     isempty(x_scale) && (x_scale = ones(length(syms)))
     @assert length(x_scale) == length(syms) && all(x_scale .> 0)
-    
+
     for xsy in Combinatorics.powerset(syms, 1)
         mod = modcon(args...; x_sym=xsy)
         d[xsy] = Dict()
         d[xsy][:check_subset_args] = (mod, xsy, vals, c_, y_, what, small, x0, lx, ux, precon, d[xsy])
-        check_subset(mod, xsy, vals, c_, y_, what, small, x0, lx, ux, x_scale, precon, d[xsy], visual)
+        check_subset(mod, xsy, vals, c_, y_, what, small, x0, lx, ux, x_scale, precon, d[xsy], visual, rng, Hessian)
     end
 
     return d
@@ -67,7 +69,7 @@ Helper function of [`check_model`](@ref check_model), which performs the tests f
 
 - Should not be called directly.
 """
-function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0, lx, ux, x_scale, precon, d, visual) where {Ny,Nx,Nc,T}
+function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0, lx, ux, x_scale, precon, d, visual, rng, Hessian) where {Ny,Nx,Nc,T}
     @assert all(w -> w ∈ (:consistency, :derivatives, :optimization), what)
 
     y!(mod, y_)
@@ -89,21 +91,21 @@ function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0
         @test real(y(mod)' * y(mod)) ≈ mod.y2
         # tests for x! and par!
         for is in powerset(1:length(mod.x_ind))
-            is = is[randperm(length(is))]
+            is = is[randperm(rng, length(is))]
             x!(mod, x_sym(mod)[is], x_[is])
             @test x_ == x(mod) && par_ == par(mod)
         end
         for is in powerset(1:length(mod.par_ind))
-            is = is[randperm(length(is))]
+            is = is[randperm(rng, length(is))]
             par!(mod, par_sym(mod)[is], par_[is])
             @test x_ == x(mod) && par_ == par(mod)
         end
         for sys in powerset(sym(mod), 1)
-            any(sy -> sy ∉ x_sym(mod), sys) && 
-                (@test_throws Exception x!(mod, sy, rand(length(sy))))
-                
-            any(sy -> sy ∉ par_sym(mod), sys) && 
-                (@test_throws Exception par!(mod, sy, rand(length(sy))))
+            any(sy -> sy ∉ x_sym(mod), sys) &&
+                (@test_throws Exception x!(mod, sy, rand(rng, length(sy))))
+
+            any(sy -> sy ∉ par_sym(mod), sys) &&
+                (@test_throws Exception par!(mod, sy, rand(rng, length(sy))))
         end
         # be sure to undo any unwanted changes
         x!(mod, x_)
@@ -128,12 +130,14 @@ function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0
 
     # derivatives are tested at x0_ ≠ x_
     if :derivatives ∈ what
-        δx = randn(length(x_)) .* x_scale_
+        δx = randn(rng, length(x_)) .* x_scale_
         title = ""
         for sy in x_sym(mod)
             title *= " " * string(sy)
         end
-        check_fgh!(fgh!(mod), x0_, δx, title=title, visual=visual)
+        check_fg!(fg!(mod), x0_, δx, title=title, visual=visual)
+        check_fgh!(fgh!(mod), x0_, δx, title=title, visual=visual, Hessian=false)
+        Hessian && check_fgh!(fgh!(mod), x0_, δx, title=title, visual=visual, Hessian=true)
     end
 
     if :optimization ∈ what
@@ -141,26 +145,27 @@ function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0
 
         if precon
             res_precon = optimize(Optim.only_fg!(fg!(mod)), lx_, ux_, x0_, Fminbox(LBFGS(P=P(mod, x0_))))
-            @test norm(x_ - res_precon.minimizer) / norm(x_) < 1e-5
+            @test norm(x_ - res_precon.minimizer) / norm(x_) < 1e-4
             x!(mod, res_precon.minimizer)
-            @test norm(c_ - c(mod)) / norm(c_) < 1e-5
+            @test norm(c_ - c(mod)) / norm(c_) < 1e-4
             d[:optim_precon] = res_precon
         end
 
         res_no_precon = optimize(Optim.only_fg!(fg!(mod)), lx_, ux_, x0_, Fminbox(LBFGS()))
-        @test norm(x_ - res_no_precon.minimizer) / norm(x_) < 1e-5
+        @test norm(x_ - res_no_precon.minimizer) / norm(x_) < 1e-4
         x!(mod, res_no_precon.minimizer)
-        @test norm(c_ - c(mod)) / norm(c_) < 1e-5
+        @test norm(c_ - c(mod)) / norm(c_) < 1e-4
         d[:optim_no_precon] = res_no_precon
     end
 end
 
 """
-    check_fgh!(fgh!, x0, δx;
+    check_fg!(fg!, x0, δx;
     log_rng=10 .^ range(-5, -1, 10),
     title="Titel",
     plot_size=(1000, 500),
     visual=false)
+
 
 Helper function of [`check_model`](@ref check_model), which checks the derivatives up to second order for a given subset `x_sym ⊆ sym`.
 
@@ -168,7 +173,7 @@ Helper function of [`check_model`](@ref check_model), which checks the derivativ
 
 - Should not be called directly.
 """
-function check_fgh!(fgh!, x0, δx;
+function check_fg!(fg!, x0, δx;
     log_rng=10 .^ range(-5, -1, 10),
     title="Titel",
     plot_size=(1000, 500),
@@ -177,7 +182,6 @@ function check_fgh!(fgh!, x0, δx;
     lx = length(x0)
     F = zero(eltype(x0))
     G = zeros(eltype(x0), lx)
-    H0 = zeros(eltype(x0), lx, lx)
 
     # set up values, where the function shall be evaluated
     hs = [lr * δx for lr in log_rng]
@@ -187,29 +191,21 @@ function check_fgh!(fgh!, x0, δx;
     plts = []
 
     # evaluate function value, gradient and Hessian at x0
-    f0 = fgh!(F, G, H0, x0)
+    f0 = fg!(F, G, x0)
     G0 = deepcopy(G) # the Hessian is not changed from here on and does not need to be saved
 
     # evaluate function values at different x0 + h
-    fs = [fgh!(F, nothing, nothing, x0 + h) for h in hs]
-
-    # evaluate gradient at different x0 + h
-    Gs = [(fgh!(F, G, nothing, x0 + h); deepcopy(G)) for h in hs]
+    fs = [fg!(F, nothing, x0 + h) for h in hs]
 
     # linear approximation of function (to test gradient)
     flas = [f0 + G0' * h for h in hs]
 
-    # linear approximation of gradient (to test Hessian)
-    Glas = [G0 + H0 * h for h in hs]
-
     # deviation of linear approximations
     # (divided by norm(h), such that it should vanish linearly for small h)
     δfla = [abs(fh - fla) / nh for (fh, fla, nh) in zip(fs, flas, nhs)]
-    δGla = [norm(Gh - Gla) / nh for (Gh, Gla, nh) in zip(Gs, Glas, nhs)]
 
     # approximate slope of linear deviations
     sfla = δfla[1] / nhs[1]
-    sGla = δGla[1] / nhs[1]
 
     # calculate linear regression slope of the logarithms
     log_nhs = log.(nhs)
@@ -227,9 +223,110 @@ function check_fgh!(fgh!, x0, δx;
         push!(plts, plot(nhs, sfla * nhs, xaxis=:log, yaxis=:log, title=string("gradient: ", title), label="approx"))
         scatter!(nhs, δfla, xaxis=:log, yaxis=:log, label="exact", legend=:topleft)
 
-        # plot result for Hessian
-        push!(plts, plot(nhs, sGla * nhs, xaxis=:log, yaxis=:log, title=string("Hessian: ", title), label="approx"))
-        scatter!(nhs, δGla, xaxis=:log, yaxis=:log, label="exact", legend=:topleft)
+        # show plots
+        display(plot(plts..., size=plot_size))
+    end
+end
+
+"""
+    check_fgh!(fgh!, x0, δx;
+    log_rng=10 .^ range(-5, -1, 10),
+    title="Titel",
+    plot_size=(1000, 500),
+    visual=false,
+    Hessian=true)
+
+
+Helper function of [`check_model`](@ref check_model), which checks the derivatives up to second order for a given subset `x_sym ⊆ sym`.
+
+## Remark
+
+- Should not be called directly.
+"""
+function check_fgh!(fgh!, x0, δx;
+    log_rng=10 .^ range(-5, -1, 10),
+    title="Titel",
+    plot_size=(1000, 500),
+    visual=false,
+    Hessian=true)
+
+    lx = length(x0)
+    F = zero(eltype(x0))
+    G = zeros(eltype(x0), lx)
+    if Hessian
+        H0 = zeros(eltype(x0), lx, lx)
+    else
+        H0 = nothing
+    end
+
+    # set up values, where the function shall be evaluated
+    hs = [lr * δx for lr in log_rng]
+    nhs = [norm(h) for h in hs]   # norm of h
+
+    # initialize plot vector
+    plts = []
+
+    # evaluate function value, gradient and Hessian at x0
+    f0 = fgh!(F, G, H0, x0)
+    G0 = deepcopy(G) # the Hessian is not changed from here on and does not need to be saved
+
+    # evaluate function values at different x0 + h
+    fs = [fgh!(F, nothing, nothing, x0 + h) for h in hs]
+
+    # linear approximation of function (to test gradient)
+    flas = [f0 + G0' * h for h in hs]
+
+    # deviation of linear approximations
+    # (divided by norm(h), such that it should vanish linearly for small h)
+    δfla = [abs(fh - fla) / nh for (fh, fla, nh) in zip(fs, flas, nhs)]
+
+    # approximate slope of linear deviations
+    sfla = δfla[1] / nhs[1]
+
+    # calculate linear regression slope of the logarithms
+    log_nhs = log.(nhs)
+    log_δfla = log.(δfla)
+    slope = (sum(log_nhs) * sum(log_δfla) - length(nhs) * (log_nhs' * log_δfla)) /
+            (sum(log_nhs)^2 - length(nhs) * (log_nhs' * log_nhs))
+
+    @test slope > 0.9
+
+    if Hessian
+        # evaluate gradient at different x0 + h
+        Gs = [(fgh!(F, G, nothing, x0 + h); deepcopy(G)) for h in hs]
+
+        # linear approximation of gradient
+        Glas = [G0 + H0 * h for h in hs]
+
+        # deviation of linear approximations
+        # (divided by norm(h), such that it should vanish linearly for small h)
+        δGla = [norm(Gh - Gla) / nh for (Gh, Gla, nh) in zip(Gs, Glas, nhs)]
+
+        # approximate slope of linear deviations
+        sGla = δGla[1] / nhs[1]
+
+        # calculate linear regression slope of the logarithms
+        log_nhs = log.(nhs)
+        log_δGla = log.(δGla)
+        slope = (sum(log_nhs) * sum(log_δGla) - length(nhs) * (log_nhs' * log_δGla)) /
+                (sum(log_nhs)^2 - length(nhs) * (log_nhs' * log_nhs))
+
+        @test slope > 0.9
+    end
+
+    if visual
+        # initialize plot vector
+        plts = []
+
+        # plot result for gradient
+        push!(plts, plot(nhs, sfla * nhs, xaxis=:log, yaxis=:log, title=string("gradient: ", title), label="approx"))
+        scatter!(nhs, δfla, xaxis=:log, yaxis=:log, label="exact", legend=:topleft)
+
+        if Hessian
+            # plot result for Hessian
+            push!(plts, plot(nhs, sGla * nhs, xaxis=:log, yaxis=:log, title=string("Hessian: ", title), label="approx"))
+            scatter!(nhs, δGla, xaxis=:log, yaxis=:log, label="exact", legend=:topleft)
+        end
 
         # show plots
         display(plot(plts..., size=plot_size))

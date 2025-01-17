@@ -4,7 +4,13 @@ import VP4Optim as VP
 include("BiExpDecay.jl")
 
 # visual confirmation of derivatives
-visual = false
+visual = true
+
+# defined random numbers
+rng = MersenneTwister(42)
+
+# include Hessian in derivative test
+Hessian = true
 
 # check out all nonempty combinations x_sym ⊆ sym
 ts = collect(range(0, 5, 10)) # time points
@@ -30,4 +36,4 @@ x_scale = ux - lx # to make different parameters more comparable
 what = (:consistency, :derivatives, :optimization)
 
 # do the tests
-res = VP.check_model(BiExpDecay, args, x, c, y, what = what, x0 = x0, lx = lx, ux = ux, x_scale = x_scale, visual = visual)
+res = VP.check_model(BiExpDecay, args, x, c, y, what = what, x0 = x0, lx = lx, ux = ux, x_scale = x_scale, visual = visual, rng = rng, Hessian = Hessian)
