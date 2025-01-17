@@ -4,7 +4,7 @@ import VP4Optim as VP
 include("BiExpDecay.jl")
 
 # visual confirmation of derivatives
-visual = true
+visual = false
 
 # defined random numbers
 rng = MersenneTwister(42)
