@@ -7,7 +7,9 @@ using LinearAlgebra, Combinatorics, Test, Optim, Random, Compat
     small=sqrt(eps()),
     x0=[], lx=[], ux=[], x_scale=[],
     precon=true,
-    visual=false)
+    visual=false,
+    rng=MersenneTwister(),
+    Hessian=true)
 
 Tests, which any specific model should pass.
 
@@ -25,6 +27,8 @@ Tests, which any specific model should pass.
 - `x_scale::Vector{Float64}`: Scaling vector, such that `δx = randn(size(x)) .* x_scale` becomes reasonable
 - `precon::Bool`: Test optimization with and without preconditioner.
 - `visual::Bool`: If `true` also generate double-logarithmic plots for the derivative tests.
+- `rng::MersenneTwister`: Allows to pass a unique seed (e.g. `MersenneTwister(42)`) for reproducible testing.
+- `Hessian::Bool`: Should be set to `false`, if the model does not implement second order derivatives.
 
 ## Remark
 

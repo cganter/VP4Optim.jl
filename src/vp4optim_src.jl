@@ -308,7 +308,7 @@ Returns up to first order partial derivatives with respect to `x`.
 
 ## Remarks
 
-- Required for first order optimization techniques.
+- Required for first and second order optimization techniques.
 - Returns `(B, b, ∂B, ∂b)::Tuple`
 - `(B, b)` as returned from [Bb!](@ref Bb!)
 - Types: `∂B::SVector{Nx, SMatrix{Nc,Nc,T}}` and `∂b::SVector{Nx, SVector{Nc,T}}`

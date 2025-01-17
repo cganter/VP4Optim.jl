@@ -96,10 +96,15 @@ end
 ```
 
 !!! note
-    It is recommended to at least include the matrix `A::SMatrix{Ny, Nc}` as an additional field in any
-    model implementation, since this prevents unnecessary recomputations of `A`.
-    The recommended approach is to let the methods [x_changed!](@ref x_changed!)
-    and [par_changed!](@ref par_changed!) trigger updates of `mod.A`.
+    For general models, one can include the matrix `A::SMatrix{Ny, Nc}` as an additional
+    field in any model implementation, since this prevents unnecessary recomputations of `A`.
+    With this approach, one would let the methods [x_changed!](@ref x_changed!)
+    and [par_changed!](@ref par_changed!) trigger updates of the field `A`.
+
+    For proper functioning of the package, neither field `A` or method [A](@ref A) are mandatory
+    though, as long as the methods [Bb!](@ref Bb!), [∂Bb!](@ref ∂Bb!) and [∂∂Bb!](@ref ∂∂Bb!) are
+    implemented properly (cf. the method descriptions for more details). 
+    Depending on the model, this route can often be preferrable to improve numerical performance.
 
 ## Constructor
 
