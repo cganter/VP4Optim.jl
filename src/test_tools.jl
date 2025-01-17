@@ -9,7 +9,9 @@ using LinearAlgebra, Combinatorics, Test, Optim, Random, Compat
     precon=true,
     visual=false,
     rng=MersenneTwister(),
-    Hessian=true)
+    Hessian=true,
+    log10_rng=range(-6, -3, 10),
+    min_slope=0.9)
 
 Tests, which any specific model should pass.
 
@@ -29,6 +31,8 @@ Tests, which any specific model should pass.
 - `visual::Bool`: If `true` also generate double-logarithmic plots for the derivative tests.
 - `rng::MersenneTwister`: Allows to pass a unique seed (e.g. `MersenneTwister(42)`) for reproducible testing.
 - `Hessian::Bool`: Should be set to `false`, if the model does not implement second order derivatives.
+- `log10_rng::AbstractVector`: logarithmic range for derivative testing
+- `min_slope::Float64`: minimal derivative slope on log-log plot
 
 ## Remark
 
@@ -46,7 +50,9 @@ function check_model(modcon, args, vals, c_, y_;
     precon=true,
     visual=false,
     rng=MersenneTwister(),
-    Hessian=true)
+    Hessian=true,
+    log10_rng=range(-6, -3, 10),
+    min_slope=0.9)
     mod = modcon(args...)
     syms = sym(mod)
     d = Dict()
@@ -58,14 +64,14 @@ function check_model(modcon, args, vals, c_, y_;
         mod = modcon(args...; x_sym=xsy)
         d[xsy] = Dict()
         d[xsy][:check_subset_args] = (mod, xsy, vals, c_, y_, what, small, x0, lx, ux, precon, d[xsy])
-        check_subset(mod, xsy, vals, c_, y_, what, small, x0, lx, ux, x_scale, precon, d[xsy], visual, rng, Hessian)
+        check_subset(mod, xsy, vals, c_, y_, what, small, x0, lx, ux, x_scale, precon, d[xsy], visual, rng, Hessian, log10_rng, min_slope)
     end
 
     return d
 end
 
 """
-    check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0, lx, ux, precon, d, visual) where {Ny,Nx,Nc,T}
+    check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0, lx, ux, x_scale, precon, d, visual, rng, Hessian, log10_rng, min_slope) where {Ny,Nx,Nc,T}
 
 Helper function of [`check_model`](@ref check_model), which performs the tests for a given subset `x_sym ⊆ sym`.
 
@@ -73,7 +79,7 @@ Helper function of [`check_model`](@ref check_model), which performs the tests f
 
 - Should not be called directly.
 """
-function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0, lx, ux, x_scale, precon, d, visual, rng, Hessian) where {Ny,Nx,Nc,T}
+function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0, lx, ux, x_scale, precon, d, visual, rng, Hessian, log10_rng, min_slope) where {Ny,Nx,Nc,T}
     @assert all(w -> w ∈ (:consistency, :derivatives, :optimization), what)
 
     y!(mod, y_)
@@ -139,9 +145,9 @@ function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0
         for sy in x_sym(mod)
             title *= " " * string(sy)
         end
-        check_fg!(fg!(mod), x0_, δx, title=title, visual=visual)
-        check_fgh!(fgh!(mod), x0_, δx, title=title, visual=visual, Hessian=false)
-        Hessian && check_fgh!(fgh!(mod), x0_, δx, title=title, visual=visual, Hessian=true)
+        check_fg!(fg!(mod), x0_, δx, title=title, visual=visual, log10_rng=log10_rng, min_slope=min_slope)
+        check_fgh!(fgh!(mod), x0_, δx, title=title, visual=visual, Hessian=false, log10_rng=log10_rng, min_slope=min_slope)
+        Hessian && check_fgh!(fgh!(mod), x0_, δx, title=title, visual=visual, Hessian=true, log10_rng=log10_rng, min_slope=min_slope)
     end
 
     if :optimization ∈ what
@@ -165,11 +171,11 @@ end
 
 """
     check_fg!(fg!, x0, δx;
-    log_rng=10 .^ range(-5, -1, 10),
+    log10_rng=range(-6, -3, 10),
+    min_slope=0.9,
     title="Titel",
     plot_size=(1000, 500),
     visual=false)
-
 
 Helper function of [`check_model`](@ref check_model), which checks the derivatives up to second order for a given subset `x_sym ⊆ sym`.
 
@@ -178,10 +184,13 @@ Helper function of [`check_model`](@ref check_model), which checks the derivativ
 - Should not be called directly.
 """
 function check_fg!(fg!, x0, δx;
-    log_rng=10 .^ range(-5, -1, 10),
+    log10_rng=range(-6, -3, 10),
+    min_slope=0.9,
     title="Titel",
     plot_size=(1000, 500),
     visual=false)
+
+    log_rng = 10 .^ log10_rng
 
     lx = length(x0)
     F = zero(eltype(x0))
@@ -217,7 +226,7 @@ function check_fg!(fg!, x0, δx;
     slope = (sum(log_nhs) * sum(log_δfla) - length(nhs) * (log_nhs' * log_δfla)) /
             (sum(log_nhs)^2 - length(nhs) * (log_nhs' * log_nhs))
 
-    @test slope > 0.9
+    @test slope > min_slope
 
     if visual
         # initialize plot vector
@@ -234,12 +243,12 @@ end
 
 """
     check_fgh!(fgh!, x0, δx;
-    log_rng=10 .^ range(-5, -1, 10),
+    log10_rng=range(-6, -3, 10),
+    min_slope=0.9,
     title="Titel",
     plot_size=(1000, 500),
     visual=false,
     Hessian=true)
-
 
 Helper function of [`check_model`](@ref check_model), which checks the derivatives up to second order for a given subset `x_sym ⊆ sym`.
 
@@ -248,11 +257,14 @@ Helper function of [`check_model`](@ref check_model), which checks the derivativ
 - Should not be called directly.
 """
 function check_fgh!(fgh!, x0, δx;
-    log_rng=10 .^ range(-5, -1, 10),
+    log10_rng=range(-6, -3, 10),
+    min_slope=0.9,
     title="Titel",
     plot_size=(1000, 500),
     visual=false,
     Hessian=true)
+
+    log_rng = 10 .^ log10_rng
 
     lx = length(x0)
     F = zero(eltype(x0))
@@ -293,7 +305,7 @@ function check_fgh!(fgh!, x0, δx;
     slope = (sum(log_nhs) * sum(log_δfla) - length(nhs) * (log_nhs' * log_δfla)) /
             (sum(log_nhs)^2 - length(nhs) * (log_nhs' * log_nhs))
 
-    @test slope > 0.9
+    @test slope > min_slope 
 
     if Hessian
         # evaluate gradient at different x0 + h
@@ -315,7 +327,7 @@ function check_fgh!(fgh!, x0, δx;
         slope = (sum(log_nhs) * sum(log_δGla) - length(nhs) * (log_nhs' * log_δGla)) /
                 (sum(log_nhs)^2 - length(nhs) * (log_nhs' * log_nhs))
 
-        @test slope > 0.9
+        @test slope > min_slope
     end
 
     if visual

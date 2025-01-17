@@ -37,3 +37,4 @@ what = (:consistency, :derivatives, :optimization)
 
 # do the tests
 res = VP.check_model(BiExpDecay, args, x, c, y, what = what, x0 = x0, lx = lx, ux = ux, x_scale = x_scale, visual = visual, rng = rng, Hessian = Hessian)
+
