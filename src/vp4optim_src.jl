@@ -18,6 +18,42 @@ Abstract supertype of any model specification.
 abstract type Model{Ny,Nx,Nc,T} end
 
 """
+    N_data(::Model{Ny,Nx,Nc,T}) where {Ny,Nx,Nc,T}
+
+Returns `Ny` (number of data)
+"""
+function N_data(::Model{Ny,Nx,Nc,T}) where {Ny,Nx,Nc,T}
+    Ny
+end
+
+"""
+    N_var(::Model{Ny,Nx,Nc,T}) where {Ny,Nx,Nc,T}
+
+Returns `Nx` (number of variable parameters)
+"""
+function N_var(::Model{Ny,Nx,Nc,T}) where {Ny,Nx,Nc,T}
+    Nx
+end
+
+"""
+    N_coeff(::Model{Ny,Nx,Nc,T}) where {Ny,Nx,Nc,T}
+
+Returns `Nc` (number of linear coefficients)
+"""
+function N_coeff(::Model{Ny,Nx,Nc,T}) where {Ny,Nx,Nc,T}
+    Nc
+end
+
+"""
+    data_type(::Model{Ny,Nx,Nc,T}) where {Ny,Nx,Nc,T}
+
+Returns `T` (data type of model)
+"""
+function data_type(::Model{Ny,Nx,Nc,T}) where {Ny,Nx,Nc,T}
+    T
+end
+
+"""
     sym(mod::Model)
 
 Return *all* model parameter names (type: `Symbol`), variable and fixed.
@@ -339,7 +375,6 @@ function ∂∂Bb!(::Model)
     error("Missing implementation of ∂∂Bb!")
 end
 
-#Requires a prior call of [y!(mod::Model{Ny,Nx,Nc,T}, new_y::AbstractArray) where {Ny,Nx,Nc,T}](@ref) to make any sense.
 """
     y_model(mod::Model)
 
