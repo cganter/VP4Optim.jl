@@ -274,11 +274,11 @@ Return VARPRO matrix `A`.
 
 ## Default
 
-- Returns `mod.A`, if the field exists and 'nothing' otherwise
+- Returns `mod.A`, if the field exists and throws an error otherwise.
 
 ## Remarks
 
-- Implementation is not mandatory,
+- Proper functioning of the method is mandatory. If the field `mod.A` does not exist, the method has to be implemented for the specific model.
 - Can be replaced by model-specific implementation, if the field `mod.A` does not exist.
 - In that scenario, the methods [x_changed!](@ref x_changed!) and [par_changed!](@ref par_changed!) trigger updates of `mod.A`.
 - if the models exhibit redundancy , the return type can be
@@ -287,8 +287,34 @@ function A(mod::Model)
     if hasfield(typeof(mod), :A)
         mod.A
     else
-        nothing
+        error("method A() not implemented.")
     end
+end
+
+"""
+    B(mod::Model)
+
+Returns matrix `B::SMatrix{Nc,Nc}`
+
+## Remarks
+
+- Returns `A(mod)' * A(mod)` by default.
+"""
+function B(mod::Model)
+    A(mod)' * A(mod)
+end
+
+"""
+    b(mod::Model)
+
+Returns vector `b::SVector{Nc}`
+
+## Remarks
+
+- Returns `A(mod)' * y(mod)` by default.
+"""
+function b(mod::Model)
+    A(mod)' * y(mod)
 end
 
 """

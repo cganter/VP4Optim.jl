@@ -177,6 +177,10 @@ Based upon the mandatory fields in any `Model` instance, the following routines 
 and (partly) modify the fields (after initialization in the constructor).
 
 ```@docs
+N_data
+N_var
+N_coeff
+data_type
 sym
 val
 x_sym
@@ -200,6 +204,8 @@ These methods provide an interface to VARPRO, as described in [Variable Projecti
 
 ```@docs
 A
+B
+b
 Bb!
 ```
 
