@@ -133,9 +133,17 @@ function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0
         # do we obtain a local minimum (since x_ should correspond to data y_)
         @test abs(f(mod)(x(mod))) < small
         # calculated data match supplied ones
-        @test y_model(mod) ≈ y(mod) == y_
+        @test y_model(mod) ≈ A(mod) * c(mod) ≈ y(mod) == y_
         # the correct linear coefficients are obtained
-        @test c(mod) ≈ c_
+        @test c(mod) ≈ B(mod) \ b(mod) ≈ c_
+        # test correctness of A, B, b
+        @test B(mod) ≈ A(mod)' * A(mod)
+        @test b(mod) ≈ A(mod)' * y(mod)
+        # test dimensions
+        @test size(y(mod)) == (Ny,)
+        @test size(A(mod)) == (Ny, Nc)
+        @test size(B(mod)) == (Nc, Nc)
+        @test size(b(mod)) == (Nc,)
         # test that f returns χ²
         x!(mod, x0_)
         @test χ2(mod) ≈ f(mod)(x0_)
