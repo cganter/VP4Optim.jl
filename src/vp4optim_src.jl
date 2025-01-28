@@ -1,8 +1,8 @@
 using LinearAlgebra, StaticArrays, Compat
 using Plots: gr, plot, scatter!
 gr()
-@compat public Model, sym, x_sym, par_sym, val, x, par, x!, par!, x_changed!, par_changed!,
-y, y!, A, c, Bb!, ∂Bb!, ∂∂Bb!, y_model, χ2, f, fg!, fgh!, P
+@compat public N_data, N_var, N_coeff, data_type, Model, sym, x_sym, par_sym, val, x, par, x!, par!, x_changed!, par_changed!,
+y, y!, A, B, b, c, Bb!, ∂Bb!, ∂∂Bb!, y_model, χ2, f, fg!, fgh!, P
 
 """
     Model{Ny,Nx,Nc,T}
