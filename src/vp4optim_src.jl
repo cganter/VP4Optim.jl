@@ -268,6 +268,24 @@ function y!(mod::Model{Ny,Nx,Nc,T}, new_y::AbstractArray) where {Ny,Nx,Nc,T}
 end
 
 """
+    set_data!(mod::Model, new_data::AbstractArray)
+
+Sets new data values safely.
+
+## Default
+
+- Simply calls [y!](@ref y!).
+
+## Remarks
+
+- Can be used to perform preprocessing of data, if required by specific models.
+- In case of doubt, always call [set_data!](@ref set_data!) instead of [y!](@ref y!).
+"""
+function set_data!(mod::Model, new_data::AbstractArray)
+    y!(mod, new_data)
+end
+
+"""
     A(::Model)
 
 Return VARPRO matrix `A`.

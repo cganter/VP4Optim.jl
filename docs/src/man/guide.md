@@ -193,10 +193,13 @@ par!(::Model, ::AbstractArray, ::AbstractArray)
 par!(::Model, ::AbstractArray)
 y
 y!
+set_data!
 ```
 
 !!! note
     Changing the data does *not* require to generate a new model instance!
+    
+    To be on the safe side, use [set_data!](@ref set_data!) instead of [y!](@ref y).
 
 ## VARPRO routines
 

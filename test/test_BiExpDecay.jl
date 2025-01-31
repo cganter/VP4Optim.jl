@@ -27,6 +27,10 @@ bi = BiExpDecay(args...) # create model instance
 VP.x!(bi, x) # set relaxation rates
 y = VP.A(bi) * c # calculate model data at time points ts (required by test function below)
 
+# check that the default implementation of set_data! works
+VP.set_data!(bi, y)
+@test VP.y(bi) == y
+
 # starting values for optimization
 x0 = 0.9x  # relaxation rates
 lx = [0, -π, 0, -π] # lower bounds
