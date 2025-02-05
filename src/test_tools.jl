@@ -2,7 +2,7 @@ using LinearAlgebra, Combinatorics, Test, Optim, Random, Compat
 @compat public check_model
 
 """
-    check_model(modcon, args, vals, c_, y_;
+    check_model(modcon, args, vals, c_, data_;
     what=(:consistency, :derivatives, :optimization),
     small=sqrt(eps()),
     x0=[], lx=[], ux=[], x_scale=[],
@@ -20,7 +20,7 @@ Tests, which any specific model should pass.
 - `args::Tuple`: Arguments, as expected by constructor, like `modcon(args...)` or `modcon(args; x_sym=x_sym)`.
 - `vals::Vector{Float64}`: *All* nonlinear parameters, the model depends on. As defined in the `Model` field `val`.
 - `c_::Vector{Nc, T}`: Linear cofficients, the model depends on.
-- `y_::Vector{T}`: Data, corresponding to the *true* parameters `vals` and `c_`. 
+- `data_::AbstractArray`: Data, corresponding to the *true* parameters `vals` and `c_`, in a format suitable for `set_data!`.
 - `what::Tuple{Symbol}`: Tests to be performed (see below).
 - `small::Float64`: Required as accuracy criterion.
 - `x0::Vector{Float64}`: Starting point for optimization and location, where derivatives are tested.
@@ -43,7 +43,7 @@ Tests, which any specific model should pass.
 - `:optimization ∈ what`: Minimize model with `x0` as starting point and bounds `lx` and `ux`.
 - An example application can be found in [`test_BiExpDecay.jl`](https://github.com/cganter/VP4Optim.jl/blob/main/test/test_BiExpDecay.jl). This should also work as a template, how to perform tests on own models.
 """
-function check_model(modcon, args, vals, c_, y_;
+function check_model(modcon, args, vals, c_, data_;
     what=(:consistency, :derivatives, :optimization),
     small=sqrt(eps()),
     x0=[], lx=[], ux=[], x_scale=[],
@@ -63,15 +63,15 @@ function check_model(modcon, args, vals, c_, y_;
     for xsy in Combinatorics.powerset(syms, 1)
         mod = modcon(args...; x_sym=xsy)
         d[xsy] = Dict()
-        d[xsy][:check_subset_args] = (mod, xsy, vals, c_, y_, what, small, x0, lx, ux, precon, d[xsy])
-        check_subset(mod, xsy, vals, c_, y_, what, small, x0, lx, ux, x_scale, precon, d[xsy], visual, rng, Hessian, log10_rng, min_slope)
+        d[xsy][:check_subset_args] = (mod, xsy, vals, c_, data_, what, small, x0, lx, ux, precon, d[xsy])
+        check_subset(mod, xsy, vals, c_, data_, what, small, x0, lx, ux, x_scale, precon, d[xsy], visual, rng, Hessian, log10_rng, min_slope)
     end
 
     return d
 end
 
 """
-    check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0, lx, ux, x_scale, precon, d, visual, rng, Hessian, log10_rng, min_slope) where {Ny,Nx,Nc,T}
+    check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, data_, what, small, x0, lx, ux, x_scale, precon, d, visual, rng, Hessian, log10_rng, min_slope) where {Ny,Nx,Nc,T}
 
 Helper function of [`check_model`](@ref check_model), which performs the tests for a given subset `x_sym ⊆ sym`.
 
@@ -79,15 +79,14 @@ Helper function of [`check_model`](@ref check_model), which performs the tests f
 
 - Should not be called directly.
 """
-function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0, lx, ux, x_scale, precon, d, visual, rng, Hessian, log10_rng, min_slope) where {Ny,Nx,Nc,T}
+function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, data_, what, small, x0, lx, ux, x_scale, precon, d, visual, rng, Hessian, log10_rng, min_slope) where {Ny,Nx,Nc,T}
     @assert all(w -> w ∈ (:consistency, :derivatives, :optimization), what)
 
-    y!(mod, y_)
+    set_data!(mod, data_)
     x_, par_, x0_, x_scale_ = vals[mod.x_ind], vals[mod.par_ind], x0[mod.x_ind], x_scale[mod.x_ind]
     x!(mod, x_)
     par!(mod, par_)
 
-    # consistency checks at the minimum, i.e. for y_ = A(x_) * c_
     if :consistency ∈ what
         # mandatory field values are set and returned correctly
         @test sym(mod) == mod.sym
@@ -130,10 +129,10 @@ function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, y_, what, small, x0
         @test x(mod) == x_
         # are the fixed parameters set correctly
         @test par(mod) == par_
-        # do we obtain a local minimum (since x_ should correspond to data y_)
+        # do we obtain a local minimum (since x_ should correspond to data data_)
         @test abs(f(mod)(x(mod))) < small
         # calculated data match supplied ones
-        @test y_model(mod) ≈ A(mod) * c(mod) ≈ y(mod) == y_
+        @test y_model(mod) ≈ A(mod) * c(mod) ≈ y(mod)
         # the correct linear coefficients are obtained
         @test c(mod) ≈ B(mod) \ b(mod) ≈ c_
         # test correctness of A, B, b
