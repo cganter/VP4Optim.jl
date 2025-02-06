@@ -260,6 +260,10 @@ Sets new data values.
 - Resets `mod.y::SVector{Ny, T}` with the content of `new_y`.
 - Calculates the squared magnitude of `mod.y` and stores the result in `mod.y2::Float64`.
 - Returns nothing.
+
+## Remarks
+
+- In most cases, it is safer to call [set_data!](@ref set_data!) instead of [y!](@ref y!).
 """
 function y!(mod::Model{Ny,Nx,Nc,T}, new_y::AbstractArray) where {Ny,Nx,Nc,T}
     mod.y = SVector{Ny,T}(new_y)
@@ -279,7 +283,7 @@ Sets new data values safely.
 ## Remarks
 
 - Can be used to perform preprocessing of data, if required by specific models.
-- In case of doubt, always call [set_data!](@ref set_data!) instead of [y!](@ref y!).
+- This is the recommended method to (re)set new data.
 """
 function set_data!(mod::Model, new_data::AbstractArray)
     y!(mod, new_data)
