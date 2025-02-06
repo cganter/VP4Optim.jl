@@ -45,8 +45,8 @@ bi = BiExpDecay(ts, sym)
 
 # read measured data ...
 y = fetch_data_from_somewhere()
-# ... and supply them to the model
-VP.y!(bi, y) 
+# ... and supply them to the model 
+VP.set_data!(bi, y)  # unlike y!, set_data! should work for all models
 
 # define some starting value for optimization in the [reR1, imR1, reR2, imR2] space
 x0 = [0.1, 0.1, 0.2, -0.2]
