@@ -1,5 +1,7 @@
 # VP4Optim
 
+*Some tools to simplify the implementation of variable projection (VARPRO) in Julia.*
+
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://cganter.github.io/VP4Optim.jl/stable/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://cganter.github.io/VP4Optim.jl/dev/)
 [![Build Status](https://github.com/cganter/VP4Optim.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/cganter/VP4Optim.jl/actions/workflows/CI.yml?query=branch%3Amain)
