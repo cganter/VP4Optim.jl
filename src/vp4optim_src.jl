@@ -1,7 +1,7 @@
 using LinearAlgebra, StaticArrays, Compat
 using Plots: gr, plot, scatter!
 gr()
-@compat public N_data, N_var, N_coeff, data_type, Model, sym, x_sym, par_sym, val, x, par, x!, par!, x_changed!, par_changed!,
+@compat public N_data, N_var, N_coeff, data_type, Model, ModPar, modpar, check, sym, x_sym, par_sym, val, x, par, x!, par!, x_changed!, par_changed!,
 y, y!, A, B, b, c, Bb!, ∂Bb!, ∂∂Bb!, y_model, χ2, f, fg!, fgh!, P
 
 """
@@ -16,6 +16,47 @@ Abstract supertype of any model specification.
 - `T <: Union{Float64, ComplexF64}` is equal to `eltype(y)`
 """
 abstract type Model{Ny,Nx,Nc,T} end
+
+"""
+    ModPar
+
+Abstract supertype of model parameters.
+
+# Remarks
+- Intended to be implemented as a non-mutable structure.
+"""
+abstract type ModPar end
+
+"""
+    modpar(T::Type{<: ModPar}; kwargs...)
+
+## Arguments
+- `T::Type{<: ModPar}`: Type of the module to be constructed.
+- `kwargs`: Arbitrary number of keyword arguments.
+## Remarks
+- First generates default parameters with `T()` (which must be implemented for each model)
+"""
+function modpar(T::Type{<: ModPar}; kwargs...)
+    t = T()
+    @assert all(k -> k ∈ fieldnames(T), keys(kwargs))
+    dpars = [getfield(t, fn) for fn in fieldnames(T)]
+    check(T([fn ∈ keys(kwargs) ? kwargs[fn] : dpar for (fn, dpar) in zip(fieldnames(T), dpars)]...))
+end
+
+"""
+    modpar(t::T; kwargs...) where {T <: ModPar}
+
+TBW
+"""
+function modpar(t::T; kwargs...) where {T <: ModPar}
+    @assert all(k -> k ∈ fieldnames(T), keys(kwargs))
+    dpars = [getfield(t, fn) for fn in fieldnames(T)]
+    check(T([fn ∈ keys(kwargs) ? kwargs[fn] : dpar for (fn, dpar) in zip(fieldnames(T), dpars)]...))
+end
+
+function check(modpar::ModPar) 
+    modpar
+end
 
 """
     N_data(::Model{Ny,Nx,Nc,T}) where {Ny,Nx,Nc,T}

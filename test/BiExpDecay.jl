@@ -30,18 +30,33 @@ mutable struct BiExpDecay{Ny,Nx} <: VP.Model{Ny,Nx,2,ComplexF64}
     ∂∂b_weights::SMatrix{Nx,Nx,SVector{2,ComplexF64}}
 end
 
+struct BEDPar <: VP.ModPar
+    ts::Vector{Float64}
+    sym::Vector{Symbol}
+    x_sym::Vector{Symbol}
+end
+
 """
     BiExpDecay(ts, sym; x_sym=nothing)
 
 Constructor to be called
 """
-function BiExpDecay(ts, sym; x_sym=nothing)
-    @assert length(sym) == 4
-    sym = collect(sym)
-    x_sym === nothing && (x_sym = deepcopy(sym))
-    @assert all(sy -> sy ∈ sym, x_sym)
+function BiExpDecay(pars::BEDPar)
+    BiExpDecay(Val(length(pars.ts)), Val(length(pars.x_sym)), pars.ts, pars.sym, pars.x_sym)
+end
 
-    BiExpDecay(Val(length(ts)), Val(length(x_sym)), ts, sym, x_sym)
+function BEDPar()
+    ts = Float64[]
+    sym = [:reR1, :imR1, :reR2, :imR2]
+    x_sym = deepcopy(sym)
+
+    BEDPar(ts, sym, x_sym)
+end
+
+function check(pars::BEDPar)
+    @assert length(pars.sym) == 4
+    @assert all(sy -> sy ∈ pars.sym, pars.x_sym)
+    pars
 end
 
 function BiExpDecay(::Val{Ny}, ::Val{Nx}, ts, sym, x_sym) where {Ny,Nx}
