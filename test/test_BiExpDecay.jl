@@ -6,7 +6,7 @@ include("BiExpDecay.jl")
 # visual confirmation of derivatives
 visual = false
 
-# defined random numbers
+# random number seed
 rng = MersenneTwister(1)
 
 # include Hessian in derivative test
