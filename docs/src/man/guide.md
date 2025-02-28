@@ -210,7 +210,7 @@ end
 ```
 which calls
 ```julia
-function SpecificModel(::Val{Ny}, ::Val{Nx}, ::Val{Nc}, pars) where {Ny, Nx, Nc}
+function SpecificModel(::Val{Ny}, ::Val{Nx}, ::Val{Nc}, smp) where {Ny, Nx, Nc}
     # name the parameters as desired
     sym = deepcopy(smp.sym)
     
@@ -226,10 +226,10 @@ function SpecificModel(::Val{Ny}, ::Val{Nx}, ::Val{Nc}, pars) where {Ny, Nx, Nc}
     y2 = 0.0
     
     # Optionally, initialize further fields, which appear in SpecificModel
-    X = pars.X
-    Y = pars.Y
-    ts = deepcopy(pars.time_points)
-    Z = exp.(im * pars.X * ts)
+    X = smp.X
+    Y = smp.Y
+    ts = deepcopy(smp.time_points)
+    Z = exp.(im * smp.X * ts)
 
     # Finally, generate an instance of SpecificModel with the default constructor
     SpecificModel{Ny, Nx, Nc}(sym, x_sym, par_sym, val, x_ind, par_ind, y, y2, X, Y, Z, ts)
