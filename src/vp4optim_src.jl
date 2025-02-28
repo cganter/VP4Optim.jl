@@ -33,6 +33,8 @@ abstract type ModPar end
 ## Arguments
 - `T::Type{<: ModPar}`: Type of the module to be constructed.
 - `kwargs`: Arbitrary number of keyword arguments.
+## Returns
+- Instance of type `<: ModPar`.
 ## Remarks
 - First generates default parameters with `T()` (which must be implemented for each model)
 """
@@ -46,7 +48,13 @@ end
 """
     modpar(t::T; kwargs...) where {T <: ModPar}
 
-TBW
+## Arguments
+- `t::ModPar`: Existing model parameters to be changed.
+- `kwargs`: Arbitrary number of keyword arguments.
+## Returns
+- Instance of type `<: ModPar`.
+## Remarks
+- Note that the argument `t` is *not* modified.
 """
 function modpar(t::T; kwargs...) where {T <: ModPar}
     @assert all(k -> k ∈ fieldnames(T), keys(kwargs))
@@ -54,6 +62,19 @@ function modpar(t::T; kwargs...) where {T <: ModPar}
     check(T([fn ∈ keys(kwargs) ? kwargs[fn] : dpar for (fn, dpar) in zip(fieldnames(T), dpars)]...))
 end
 
+"""
+    check(modpar::ModPar)
+
+Checks, whether parameters in `modpar` are consistent.
+
+## Arguments
+- `modpar::ModPar`: Instance of model parameters to be checked.
+## Default
+- Does nothing. Just returns `modpar`.
+## Remarks
+- Should be supplied, if parameter inconsistencies can occur. 
+- On success, the routine *must* return `modpar`.
+"""
 function check(modpar::ModPar) 
     modpar
 end

@@ -40,25 +40,34 @@ ts = collect(range(0, 5, 10))
 # specification of the (nonlinear) model parameter names
 sym = [:reR1, :imR1, :reR2, :imR2]
 
+# specification of the variable (sub)set
+x_sym = [:reR1, :imR2]
+
+# generate an instance of BEDPar <: ModPar (constructor parameters)
+pars = VP.modpar(BEDPar; ts = ts, sym = sym, x_sym = x_sym)
+
 # create VP4Optim model instance
-bi = BiExpDecay(ts, sym)
+bi = BiExpDecay(pars)
+
+# fix the parameters, which are not variable
+VP.par!(bi, [:imR1, :reR2], [1.0, 0.3])
 
 # read measured data ...
 y = fetch_data_from_somewhere()
 # ... and supply them to the model 
 VP.set_data!(bi, y)  # unlike y!, set_data! should work for all models
 
-# define some starting value for optimization in the [reR1, imR1, reR2, imR2] space
-x0 = [0.1, 0.1, 0.2, -0.2]
+# define some starting value for optimization in the variable [reR1, imR2] space
+x0 = [0.1, -0.2]
 # if we want to restrict the optimization space, we can define lower and upper bounds
-lo = [0, -π, 0, -π]
-up = [1, π, 1, π]
+lo = [0, -π]
+up = [1, π]
 
 # now we can start the optimization
 res = optimize(Optim.only_fg!(fg!(bi)), lo, up, x0, Fminbox(LBFGS()))
 
 # and extract the found results
-reR1, imR1, reR2, imR2 = x = res.minimizer
+reR1, imR2 = x = res.minimizer
 
 # if we assume these values for our model ...
 VP.x!(bi, x)

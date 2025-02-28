@@ -42,7 +42,7 @@ end
 Constructor to be called
 """
 function BiExpDecay(pars::BEDPar)
-    BiExpDecay(Val(length(pars.ts)), Val(length(pars.x_sym)), pars.ts, pars.sym, pars.x_sym)
+    BiExpDecay(Val(length(pars.ts)), Val(length(pars.x_sym)), pars)
 end
 
 function BEDPar()
@@ -59,14 +59,14 @@ function check(pars::BEDPar)
     pars
 end
 
-function BiExpDecay(::Val{Ny}, ::Val{Nx}, ts, sym, x_sym) where {Ny,Nx}
+function BiExpDecay(::Val{Ny}, ::Val{Nx}, pars::BEDPar) where {Ny,Nx}
     val = zeros(4)
-    x_ind = SVector{Nx,Int}(findfirst(x -> x == x_sym[i], sym) for i in 1:Nx)
+    x_ind = SVector{Nx,Int}(findfirst(x -> x == pars.x_sym[i], pars.sym) for i in 1:Nx)
     par_ind = filter(x -> x ∉ x_ind, 1:4)
-    par_sym = sym[par_ind]
+    par_sym = pars.sym[par_ind]
     y = SVector{Ny,ComplexF64}(zeros(ComplexF64, Ny))
     A = SMatrix{Ny,2}(zeros(ComplexF64, Ny, 2))
-    ts = SVector{Ny,Float64}(ts)
+    ts = SVector{Ny,Float64}(pars.ts)
     cR = SVector{2,ComplexF64}(zeros(ComplexF64, 2))
 
     ∂B_weights = SVector{4,SMatrix{2,2,ComplexF64}}([
@@ -92,7 +92,7 @@ function BiExpDecay(::Val{Ny}, ::Val{Nx}, ts, sym, x_sym) where {Ny,Nx}
     ∂∂b_weights = SMatrix{Nx,Nx,SVector{2,ComplexF64}}(
         ∂b_weights[i] .* ∂b_weights[j] for i in 1:Nx, j in 1:Nx)
 
-    BiExpDecay{Ny,Nx}(sym, x_sym, par_sym, val, x_ind, par_ind, y, 0.0, A, ts, cR, 
+    BiExpDecay{Ny,Nx}(pars.sym, pars.x_sym, par_sym, val, x_ind, par_ind, y, 0.0, A, pars.ts, cR, 
         ∂B_weights, ∂b_weights, ∂∂B_weights, ∂∂b_weights)
 end
 

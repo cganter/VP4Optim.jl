@@ -25,9 +25,8 @@ selecting different subsets of ``\bm{p}`` as variable.
 To address these requirements, any specific VARPRO model in 
 [VP4Optim](https://github.com/cganter/VP4Optim.jl) shall be defined as
 some subtype of the abstract type `VP4Optim.Model{Ny,Nx,Nc,T}`
-```@autodocs
-Modules=[VP4Optim]
-Order=[:type]
+```@docs
+Model
 ```
 Some fields are mandatory in any model definition, as shown in the following example of a complex
 valued model[^2]:
@@ -89,8 +88,13 @@ mutable struct SpecificModel{Ny,Nx,Nc} <: VP.Model{Ny,Nx,Nc,ComplexF64}
     
     y2::Float64                 
 
-    # optional model-specific information
-    # (typically, some allocated workspace to avoid costly redundant calculations)
+    # optional model-specific information, needed for the constructor
+    X::Float64
+    Y::Symbol
+    time_points::Vector{Float64}
+    Z::Vector{ComplexF64}
+
+    # and/or allocated workspace
     # ...
 end
 ```
@@ -106,6 +110,82 @@ end
     implemented properly (cf. the method descriptions for more details). 
     Depending on the model, this route can often be preferrable to improve numerical performance.
 
+## Constructor parameters
+
+Depending on the model, the number of arguments for the [Constructor](@ref) can be large.
+For this reason, we collect these arguments as fields in a subtype
+of
+```@docs
+ModPar
+```
+For the example model above, the definition could look like
+```julia
+struct SpeModPar <: ModPar
+    sym::Vector{Symbol}
+    x_sym::Vector{Symbol}
+    X::Float64
+    Y::Symbol
+    time_points::Vector{Float64}
+end
+```
+!!! note
+    Instances of `ModPar` are only used as arguments for the [Constructor](@ref).
+    
+    Internal parameters, like `a,b,c,d,e` in the example above, are typically set via [par!](@ref par!) or
+    [x!](@ref x) and therefore usually *not* included in subtypes of `ModPar`.
+
+For [modpar](@ref modpar) to work, any subtype of `ModPar` should provide a default constructor
+without arguments, like
+```julia
+function SpeModPar()
+    sym_ = [:a, :b, :c, :d, :e]
+    x_sym_ = deepcopy(sym)
+    X_ = 0.0
+    Y_ = :42
+    time_points_ = Float64[]
+    
+    SpeModPar(sym_, x_sym_, X_, Y_, time_points_)
+end
+```
+!!! note
+    There is no need to define `ModPar` mutable, since the [modpar](@ref modpar) routines are supplied.
+
+To specify model settings, the [modpar](@ref modpar) routines can be used 
+```@docs    
+modpar
+```
+which are applied like this
+```julia
+# Generate an instance of ModPar either with default settings ...
+smp = modpar(SpeModPar)  # Unlike smp = SpeModPar(), this also checks parameters for consistency (see below).
+# ... or specific settings via one or more keyword arguments
+smp = modpar(SpeModPar; x_sym = [:a, :d], Y_ = :43)
+
+# Parameters of an instance smp can also be changed
+smp = modpar(smp; x_sym = [:a, :b, :c], X_ = 1.0, time_points_ = [0, 1, 2])
+```
+
+!!! note
+    - [modpar](@ref modpar) does not change the supplied argument `smp` but returns a new one, which must be caught.
+    - Before returning the result, the [modpar](@ref modpar) functions call [check](@ref check) to test consistency of parameters.
+
+```@docs
+check
+```
+In our case, an implementation of [check](@ref check) could looks like this
+```julia
+function check(smp::SpeModPar)
+    @assert length(smp.sym) == 5
+    @assert all(sy -> sy ∈ smp.sym, smp.x_sym)
+    @assert smp.X ≥ 0
+    # ...
+    
+    return smp
+end
+```
+!!! note
+    It is *mandatory* that [check](@ref check) returns `smp`!
+
 ## Constructor
 
 To benefit from the increased performance of 
@@ -114,35 +194,30 @@ be known at *compile time*. This can be accomplished with the following exemplar
 
 A constructor to be called by the user/application, e.g.
 ```julia
-function SpecificModel(args, sym=[:a, :b, :c, :d, :e]; x_sym=nothing)
-    # some code, which will be similar for different models
-
-    # name the parameters as desired
-    sym = collect(sym)
-    
-    # specify the variable subset of the parameters
-    # (defaults to sym)
-    x_sym === nothing && (x_sym = deepcopy(sym))
+function SpecificModel(smp::SpeModPar)
+    # ... the magnitude of which determines Nx
     Nx = length(x_sym)
 
-    # check that x_sym is a subset of sym
-    @assert all(sy -> sy ∈ sym, x_sym)
-   
-    # Ny will usually be deduced from args
-    # (for example by the number of time points, when the data were sampled)
-    Ny = some_function_of(args)
+    # In our example, the number of data points must be equal to the number of time points:
+    Ny = length(smp.time_points)
 
-    # If not already fixed by SpecificModel, Nc must also be inferred from args:
-    Nc = some_other_function_of(args)
+    # If not already fixed by SpecificModel, Nc must also be inferred from smp:
+    Nc = some_function_of(smp)
 
-    # now we can call a constructor, where Ny, Nx, Nc are converted into types
-    SpecificModel(Val(Ny), Val(Nx), Val(Nc), args, sym, x_sym)
+    # Now we can call a constructor, where Ny, Nx, Nc are converted into types
+    SpecificModel(Val(Ny), Val(Nx), Val(Nc), smp)
 end
 ```
 which calls
 ```julia
-function SpecificModel(::Val{Ny}, ::Val{Nx}, ::Val{Nc}, args, sym, x_sym) where {Ny, Nx, Nc}
-    # the remaining mandatory fields can be calculated as follows
+function SpecificModel(::Val{Ny}, ::Val{Nx}, ::Val{Nc}, pars) where {Ny, Nx, Nc}
+    # name the parameters as desired
+    sym = deepcopy(smp.sym)
+    
+    # specify the variable subset of the parameters
+    x_sym = deepcopy(smp.x_sym)
+    
+    # The remaining mandatory fields can be calculated as follows
     val = zeros(length(sym))
     x_ind = SVector{Nx,Int}(findfirst(x -> x == x_sym[i], sym) for i in 1:Nx)
     par_ind = filter(x -> x ∉ x_ind, 1:length(sym))
@@ -150,11 +225,14 @@ function SpecificModel(::Val{Ny}, ::Val{Nx}, ::Val{Nc}, args, sym, x_sym) where 
     y = SVector{Ny,ComplexF64}(zeros(ComplexF64, Ny))
     y2 = 0.0
     
-    # optionally initialize further fields, which appear in SpecificModel
-    # ...
+    # Optionally, initialize further fields, which appear in SpecificModel
+    X = pars.X
+    Y = pars.Y
+    ts = deepcopy(pars.time_points)
+    Z = exp.(im * pars.X * ts)
 
-    # finally, generate an instance of SpecificModel with the default constructor
-    SpecificModel{Ny, Nx, Nc}(sym, x_sym, par_sym, val, x_ind, par_ind, y, y2, ...)
+    # Finally, generate an instance of SpecificModel with the default constructor
+    SpecificModel{Ny, Nx, Nc}(sym, x_sym, par_sym, val, x_ind, par_ind, y, y2, X, Y, Z, ts)
 end
 ```
 !!! note
