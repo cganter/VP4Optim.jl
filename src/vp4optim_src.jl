@@ -42,7 +42,7 @@ function modpar(T::Type{<: ModPar}; kwargs...)
     t = T()
     @assert all(k -> k ∈ fieldnames(T), keys(kwargs))
     dpars = [getfield(t, fn) for fn in fieldnames(T)]
-    check(T([fn ∈ keys(kwargs) ? kwargs[fn] : dpar for (fn, dpar) in zip(fieldnames(T), dpars)]...))
+    T([fn ∈ keys(kwargs) ? kwargs[fn] : dpar for (fn, dpar) in zip(fieldnames(T), dpars)]...)
 end
 
 """
@@ -59,25 +59,22 @@ end
 function modpar(t::T; kwargs...) where {T <: ModPar}
     @assert all(k -> k ∈ fieldnames(T), keys(kwargs))
     dpars = [getfield(t, fn) for fn in fieldnames(T)]
-    check(T([fn ∈ keys(kwargs) ? kwargs[fn] : dpar for (fn, dpar) in zip(fieldnames(T), dpars)]...))
+    T([fn ∈ keys(kwargs) ? kwargs[fn] : dpar for (fn, dpar) in zip(fieldnames(T), dpars)]...)
 end
 
 """
-    check(modpar::ModPar)
+    check(::ModPar)
 
-Checks, whether parameters in `modpar` are consistent.
+Throws an Exception, if the supplied constructor parameters are consistent.
 
 ## Arguments
-- `modpar::ModPar`: Instance of model parameters to be checked.
+- `::ModPar`: Instance of model parameters to be checked.
 ## Default
-- Does nothing. Just returns `modpar`.
+- Does nothing.
 ## Remarks
-- Should be supplied, if parameter inconsistencies can occur. 
-- On success, the routine *must* return `modpar`.
+- Should be called as first routine in a model constructor. 
 """
-function check(modpar::ModPar) 
-    modpar
-end
+function check(::ModPar) end
 
 """
     N_data(::Model{Ny,Nx,Nc,T}) where {Ny,Nx,Nc,T}

@@ -42,6 +42,7 @@ end
 Constructor to be called
 """
 function BiExpDecay(pars::BEDPar)
+    VP.check(pars)
     BiExpDecay(Val(length(pars.ts)), Val(length(pars.x_sym)), pars)
 end
 
@@ -56,7 +57,7 @@ end
 function check(pars::BEDPar)
     @assert length(pars.sym) == 4
     @assert all(sy -> sy ∈ pars.sym, pars.x_sym)
-    pars
+    return true
 end
 
 function BiExpDecay(::Val{Ny}, ::Val{Nx}, pars::BEDPar) where {Ny,Nx}
@@ -66,7 +67,6 @@ function BiExpDecay(::Val{Ny}, ::Val{Nx}, pars::BEDPar) where {Ny,Nx}
     par_sym = pars.sym[par_ind]
     y = SVector{Ny,ComplexF64}(zeros(ComplexF64, Ny))
     A = SMatrix{Ny,2}(zeros(ComplexF64, Ny, 2))
-    ts = SVector{Ny,Float64}(pars.ts)
     cR = SVector{2,ComplexF64}(zeros(ComplexF64, 2))
 
     ∂B_weights = SVector{4,SMatrix{2,2,ComplexF64}}([

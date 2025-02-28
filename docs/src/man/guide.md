@@ -157,7 +157,7 @@ modpar
 which are applied like this
 ```julia
 # Generate an instance of ModPar either with default settings ...
-smp = modpar(SpeModPar)  # Unlike smp = SpeModPar(), this also checks parameters for consistency (see below).
+smp = modpar(SpeModPar)  # equivalent to smp = SpeModPar()
 # ... or specific settings via one or more keyword arguments
 smp = modpar(SpeModPar; x_sym = [:a, :d], Y_ = :43)
 
@@ -167,8 +167,9 @@ smp = modpar(smp; x_sym = [:a, :b, :c], X_ = 1.0, time_points_ = [0, 1, 2])
 
 !!! note
     - [modpar](@ref modpar) does not change the supplied argument `smp` but returns a new one, which must be caught.
-    - Before returning the result, the [modpar](@ref modpar) functions call [check](@ref check) to test consistency of parameters.
 
+Calling a constructor for [Model](@ref Model) with an instance of [ModPar](@ref ModPar) 
+must not cause inconsistencies. To this end, the function [check](@ref check) can be provided
 ```@docs
 check
 ```
@@ -179,12 +180,10 @@ function check(smp::SpeModPar)
     @assert all(sy -> sy ∈ smp.sym, smp.x_sym)
     @assert smp.X ≥ 0
     # ...
-    
-    return smp
 end
 ```
 !!! note
-    It is *mandatory* that [check](@ref check) returns `smp`!
+    The [check](@ref check) function should be inserted at the start of any [Model](@ref Model) constructor. (see example below)
 
 ## Constructor
 
@@ -195,6 +194,9 @@ be known at *compile time*. This can be accomplished with the following exemplar
 A constructor to be called by the user/application, e.g.
 ```julia
 function SpecificModel(smp::SpeModPar)
+    # check for consistency of parameters
+    check(smp)
+
     # ... the magnitude of which determines Nx
     Nx = length(x_sym)
 
