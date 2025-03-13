@@ -65,7 +65,7 @@ end
 """
     check(::ModPar)
 
-Throws an Exception, if the supplied constructor parameters are consistent.
+Throws an Exception, if the supplied constructor parameters are inconsistent.
 
 ## Arguments
 - `::ModPar`: Instance of model parameters to be checked.
