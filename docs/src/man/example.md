@@ -43,11 +43,11 @@ sym = [:reR1, :imR1, :reR2, :imR2]
 # specification of the variable (sub)set
 x_sym = [:reR1, :imR2]
 
-# generate an instance of BEDPar <: ModPar (constructor parameters)
-pars = VP.modpar(BEDPar; ts = ts, sym = sym, x_sym = x_sym)
+# generate an instance of VP.ModPar{BiExpDecay} (constructor parameters)
+pars = VP.modpar(BiExpDecay; ts = ts, sym = sym, x_sym = x_sym)
 
 # create VP4Optim model instance
-bi = BiExpDecay(pars)
+bi = VP.create_model(pars)
 
 # fix the parameters, which are not variable
 VP.par!(bi, [:imR1, :reR2], [1.0, 0.3])
