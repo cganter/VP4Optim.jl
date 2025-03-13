@@ -2,7 +2,7 @@ using LinearAlgebra, Combinatorics, Test, Optim, Random, Compat
 @compat public check_model
 
 """
-    check_model(T, pars, vals, c_, data_;
+    check_model(pars, vals, c_, data_;
     what=(:consistency, :derivatives, :optimization),
     small=sqrt(eps()),
     x0=[], lx=[], ux=[], x_scale=[],
@@ -16,8 +16,7 @@ using LinearAlgebra, Combinatorics, Test, Optim, Random, Compat
 Tests, which any specific model should pass.
 
 # Arguments
-- `T::Type{<: Model}`: Type of model to be tested.
-- `pars::ModPar`: Model parameters for constructor T(pars)`.
+- `pars::ModPar{T}`: Model parameters for constructor `create_model(pars)`.
 - `vals::Vector{Float64}`: *All* nonlinear parameters, the model depends on. As defined in the `Model` field `val`.
 - `c_::Vector{Nc, T}`: Linear cofficients, the model depends on.
 - `data_::AbstractArray`: Data, corresponding to the *true* parameters `vals` and `c_`, in a format suitable for `set_data!`.
@@ -43,7 +42,7 @@ Tests, which any specific model should pass.
 - `:optimization ∈ what`: Minimize model with `x0` as starting point and bounds `lx` and `ux`.
 - An example application can be found in [`test_BiExpDecay.jl`](https://github.com/cganter/VP4Optim.jl/blob/main/test/test_BiExpDecay.jl). This should also work as a template, how to perform tests on own models.
 """
-function check_model(T, pars, vals, c_, data_;
+function check_model(pars, vals, c_, data_;
     what=(:consistency, :derivatives, :optimization),
     small=sqrt(eps()),
     x0=[], lx=[], ux=[], x_scale=[],
@@ -53,7 +52,8 @@ function check_model(T, pars, vals, c_, data_;
     Hessian=true,
     log10_rng=range(-6, -3, 10),
     min_slope=0.9)
-    mod = T(pars)
+    
+    mod = create_model(pars)
     syms = sym(mod)
     d = Dict()
 
@@ -61,7 +61,7 @@ function check_model(T, pars, vals, c_, data_;
     @assert length(x_scale) == length(syms) && all(x_scale .> 0)
 
     for xsy in Combinatorics.powerset(syms, 1)
-        mod = T(modpar(pars, x_sym=xsy))
+        mod = create_model(modpar(pars; x_sym=xsy))
         d[xsy] = Dict()
         d[xsy][:check_subset_args] = (mod, xsy, vals, c_, data_, what, small, x0, lx, ux, precon, d[xsy])
         check_subset(mod, xsy, vals, c_, data_, what, small, x0, lx, ux, x_scale, precon, d[xsy], visual, rng, Hessian, log10_rng, min_slope)

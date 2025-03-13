@@ -1,7 +1,7 @@
 using LinearAlgebra, StaticArrays, Compat
 using Plots: gr, plot, scatter!
 gr()
-@compat public N_data, N_var, N_coeff, data_type, Model, ModPar, modpar, check, sym, x_sym, par_sym, val, x, par, x!, par!, x_changed!, par_changed!,
+@compat public N_data, N_var, N_coeff, data_type, Model, ModPar, modpar, create_model, check, sym, x_sym, par_sym, val, x, par, x!, par!, x_changed!, par_changed!,
 y, y!, A, B, b, c, Bb!, ∂Bb!, ∂∂Bb!, y_model, χ2, f, fg!, fgh!, P
 
 """
@@ -18,48 +18,73 @@ Abstract supertype of any model specification.
 abstract type Model{Ny,Nx,Nc,T} end
 
 """
-    ModPar
+    ModPar{T}
 
 Abstract supertype of model parameters.
+
 
 # Remarks
 - Intended to be implemented as a non-mutable structure.
 """
-abstract type ModPar end
+abstract type ModPar{T <: Model} end
 
 """
-    modpar(T::Type{<: ModPar}; kwargs...)
+    ModPar(::Type{<: Model})
+
+Construct default parameters for model of type `T`.
+
+## Remark
+- Must be implemented for each specific model.
+"""
+function ModPar(::Type{<: Model}) end
+
+"""
+    modpar(T::Type{<: Model}; kwargs...)
 
 ## Arguments
-- `T::Type{<: ModPar}`: Type of the module to be constructed.
+- `T::Type{<: Model}`: Type of the model to be constructed.
 - `kwargs`: Arbitrary number of keyword arguments.
 ## Returns
-- Instance of type `<: ModPar`.
+- Instance of type `<: ModPar{T}`.
 ## Remarks
-- First generates default parameters with `T()` (which must be implemented for each model)
+- First generates default parameters with [ModPar](@ref ModPar(::Type{<: Model})) (which must be implemented for each model)
 """
-function modpar(T::Type{<: ModPar}; kwargs...)
-    t = T()
-    @assert all(k -> k ∈ fieldnames(T), keys(kwargs))
-    dpars = [getfield(t, fn) for fn in fieldnames(T)]
-    T([fn ∈ keys(kwargs) ? kwargs[fn] : dpar for (fn, dpar) in zip(fieldnames(T), dpars)]...)
+function modpar(T::Type{<: Model}; kwargs...)
+    mp = ModPar(T)
+    @assert all(k -> k ∈ propertynames(mp), keys(kwargs))
+    dpars = [getfield(mp, fn) for fn in propertynames(mp)]
+    typeof(mp)([fn ∈ keys(kwargs) ? kwargs[fn] : dpar for (fn, dpar) in zip(propertynames(mp), dpars)]...)
 end
 
 """
-    modpar(t::T; kwargs...) where {T <: ModPar}
+    modpar(mp::ModPar{T}; kwargs...) where {T <: Model}
 
 ## Arguments
-- `t::ModPar`: Existing model parameters to be changed.
+- `mp::ModPar{T}`: Existing model parameters to be changed.
 - `kwargs`: Arbitrary number of keyword arguments.
 ## Returns
-- Instance of type `<: ModPar`.
+- Instance of type `<: ModPar{T}`.
 ## Remarks
-- Note that the argument `t` is *not* modified.
+- Note that the argument `mp` is *not* modified.
 """
-function modpar(t::T; kwargs...) where {T <: ModPar}
-    @assert all(k -> k ∈ fieldnames(T), keys(kwargs))
-    dpars = [getfield(t, fn) for fn in fieldnames(T)]
-    T([fn ∈ keys(kwargs) ? kwargs[fn] : dpar for (fn, dpar) in zip(fieldnames(T), dpars)]...)
+function modpar(mp::ModPar{T}; kwargs...) where {T <: Model}
+    @assert all(k -> k ∈ propertynames(mp), keys(kwargs))
+    dpars = [getfield(mp, fn) for fn in propertynames(mp)]
+    typeof(mp)([fn ∈ keys(kwargs) ? kwargs[fn] : dpar for (fn, dpar) in zip(propertynames(mp), dpars)]...)
+end
+
+"""
+    create_model(mp::ModPar{T}) where {T <: Model}
+
+Create a new instance of model `T` with model parameters `mp`
+
+## Remarks
+- Calls [check](@ref check) to guarantee consistency of parameters.
+- Then calls the constructor `T(mp)`, which must be implemented for each model.
+"""
+function create_model(mp::ModPar{T}) where {T <: Model}
+    check(mp)
+    T(mp)
 end
 
 """
@@ -72,7 +97,7 @@ Throws an Exception, if the supplied constructor parameters are inconsistent.
 ## Default
 - Does nothing.
 ## Remarks
-- Should be called as first routine in a model constructor. 
+- Is automatically called by [create\\_model](@ref create_model).
 """
 function check(::ModPar) end
 

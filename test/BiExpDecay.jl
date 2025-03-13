@@ -30,23 +30,18 @@ mutable struct BiExpDecay{Ny,Nx} <: VP.Model{Ny,Nx,2,ComplexF64}
     ∂∂b_weights::SMatrix{Nx,Nx,SVector{2,ComplexF64}}
 end
 
-struct BEDPar <: VP.ModPar
+struct BEDPar <: VP.ModPar{BiExpDecay}
     ts::Vector{Float64}
     sym::Vector{Symbol}
     x_sym::Vector{Symbol}
 end
 
 """
-    BiExpDecay(ts, sym; x_sym=nothing)
+    VP.ModPar(::Type{BiExpDecay})
 
-Constructor to be called
+Default constructor for model parameters.
 """
-function BiExpDecay(pars::BEDPar)
-    VP.check(pars)
-    BiExpDecay(Val(length(pars.ts)), Val(length(pars.x_sym)), pars)
-end
-
-function BEDPar()
+function VP.ModPar(::Type{BiExpDecay})
     ts = Float64[]
     sym = [:reR1, :imR1, :reR2, :imR2]
     x_sym = deepcopy(sym)
@@ -54,7 +49,21 @@ function BEDPar()
     BEDPar(ts, sym, x_sym)
 end
 
-function check(pars::BEDPar)
+"""
+    BiExpDecay(pars::BEDPar)
+
+Constructor to be called
+"""
+function BiExpDecay(pars::BEDPar)
+    BiExpDecay(Val(length(pars.ts)), Val(length(pars.x_sym)), pars)
+end
+
+"""
+    VP.check(pars::BEDPar)
+
+Check consistency of model parameters.
+"""
+function VP.check(pars::BEDPar)
     @assert length(pars.sym) == 4
     @assert all(sy -> sy ∈ pars.sym, pars.x_sym)
     return true

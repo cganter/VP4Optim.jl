@@ -120,7 +120,7 @@ ModPar
 ```
 For the example model above, the definition could look like
 ```julia
-struct SpeModPar <: ModPar
+struct SpeModPar <: VP.ModPar{SpecificModel}
     sym::Vector{Symbol}
     x_sym::Vector{Symbol}
     X::Float64
@@ -135,9 +135,13 @@ end
     [x!](@ref x) and therefore usually *not* included in subtypes of `ModPar`.
 
 For [modpar](@ref modpar) to work, any subtype of `ModPar` should provide a default constructor
-without arguments, like
+without arguments
+```@docs
+ModPar(::Type{<: Model})
+```
+like this
 ```julia
-function SpeModPar()
+function VP.ModPar(::Type{SpecificModel})
     sym_ = [:a, :b, :c, :d, :e]
     x_sym_ = deepcopy(sym)
     X_ = 0.0
@@ -157,9 +161,9 @@ modpar
 which are applied like this
 ```julia
 # Generate an instance of ModPar either with default settings ...
-smp = modpar(SpeModPar)  # equivalent to smp = SpeModPar()
+smp = modpar(SpecificModel)  # equivalent to smp = VP.ModPar(SpecificModel)
 # ... or specific settings via one or more keyword arguments
-smp = modpar(SpeModPar; x_sym = [:a, :d], Y_ = :43)
+smp = modpar(SpecificModel; x_sym = [:a, :d], Y_ = :43)
 
 # Parameters of an instance smp can also be changed
 smp = modpar(smp; x_sym = [:a, :b, :c], X_ = 1.0, time_points_ = [0, 1, 2])
@@ -168,37 +172,25 @@ smp = modpar(smp; x_sym = [:a, :b, :c], X_ = 1.0, time_points_ = [0, 1, 2])
 !!! note
     - [modpar](@ref modpar) does not change the supplied argument `smp` but returns a new one, which must be caught.
 
-Calling a constructor for [Model](@ref Model) with an instance of [ModPar](@ref ModPar) 
-must not cause inconsistencies. To this end, the function [check](@ref check) can be provided
-```@docs
-check
-```
-In our case, an implementation of [check](@ref check) could looks like this
-```julia
-function check(smp::SpeModPar)
-    @assert length(smp.sym) == 5
-    @assert all(sy -> sy ∈ smp.sym, smp.x_sym)
-    @assert smp.X ≥ 0
-    # ...
-end
-```
-!!! note
-    The [check](@ref check) function should be inserted at the start of any [Model](@ref Model) constructor. (see example below)
-
 ## Constructor
 
-To benefit from the increased performance of 
-[StaticArrays.jl](https://github.com/JuliaArrays/StaticArrays.jl), the parameters `Ny`, `Nx`, `Nc` need to
-be known at *compile time*. This can be accomplished with the following exemplary setup:
+For given model parameters, a model instance can always be generated with the function
+```@docs
+create_model
+```
+like this
+```julia
+# Generate an instance of SpecificModel
+mod = VP.create_model(smp)
+```
+!!! note
+    - For this to work, each model `SpecificModel` must provide a constuctor `SpecificModel(::SpeModPar)`.
 
-A constructor to be called by the user/application, e.g.
+    - To benefit from the increased performance of [StaticArrays.jl](https://github.com/JuliaArrays/StaticArrays.jl), the parameters `Ny`, `Nx`, `Nc` need to be known at *compile time*. This can be accomplished with the following exemplary setup:
 ```julia
 function SpecificModel(smp::SpeModPar)
-    # check for consistency of parameters
-    check(smp)
-
-    # ... the magnitude of which determines Nx
-    Nx = length(x_sym)
+    # Number of variable parameters
+    Nx = length(smp.x_sym)
 
     # In our example, the number of data points must be equal to the number of time points:
     Ny = length(smp.time_points)
@@ -209,9 +201,7 @@ function SpecificModel(smp::SpeModPar)
     # Now we can call a constructor, where Ny, Nx, Nc are converted into types
     SpecificModel(Val(Ny), Val(Nx), Val(Nc), smp)
 end
-```
-which calls
-```julia
+
 function SpecificModel(::Val{Ny}, ::Val{Nx}, ::Val{Nc}, smp) where {Ny, Nx, Nc}
     # name the parameters as desired
     sym = deepcopy(smp.sym)
@@ -250,6 +240,23 @@ end
     ```
     Also the constructors will then need to be adapted accordingly, as 
     shown there.
+
+!!! note
+    - The method [create_model](@ref create_model) calls the function [check](@ref check) before actually calling the constructor.
+    - If model parameters have to fulfil certain requirements, these model-dependent constistency checks should therefore be placed in [check](@ref check):
+
+```@docs
+check
+```
+In our case, an implementation of [check](@ref check) could looks like this
+```julia
+function check(smp::SpeModPar)
+    @assert length(smp.sym) == 5
+    @assert all(sy -> sy ∈ smp.sym, smp.x_sym)
+    @assert smp.X ≥ 0
+    # ...
+end
+```
 
 ## Model parameters
 

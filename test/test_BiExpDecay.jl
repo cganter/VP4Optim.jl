@@ -16,12 +16,12 @@ Hessian = true
 min_slope = 0.8
 
 # generate ModPar structure for given time points
-pars = VP.modpar(BEDPar; ts = collect(range(0, 5, 10)))
+pars = VP.modpar(BiExpDecay; ts = collect(range(0, 5, 10)))
 
 # true values 
 x = [0.05, 0.3, 0.1, 0.7] # actual relaxation rate values (cf. variable sym above)
 c = rand(rng, ComplexF64, 2) # linear prefactors of the two expoentials
-bi = BiExpDecay(pars) # create model instance
+bi = VP.create_model(pars) # create model instance
 VP.x!(bi, x) # set relaxation rates
 y = VP.A(bi) * c # calculate model data at time points ts (required by test function below)
 
@@ -41,5 +41,5 @@ x_scale = ux - lx # to make different parameters more comparable
 what = (:consistency, :derivatives, :optimization)
 
 # do the tests
-res = VP.check_model(BiExpDecay, pars, x, c, y, what = what, x0 = x0, lx = lx, ux = ux, x_scale = x_scale, visual = visual, rng = rng, Hessian = Hessian, min_slope = min_slope)
+res = VP.check_model(pars, x, c, y, what = what, x0 = x0, lx = lx, ux = ux, x_scale = x_scale, visual = visual, rng = rng, Hessian = Hessian, min_slope = min_slope)
 
