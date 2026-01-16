@@ -1,6 +1,6 @@
 name = "VP4Optim"
 uuid = "8687cf0f-8f6d-4dd6-8e27-64e326ab5325"
-version = "1.0.14"
+version = "1.0.15"
 authors = ["Carl Ganter <cganter@tum.de>"]
 
 [deps]
@@ -26,7 +26,7 @@ Random = "1.11.0"
 Revise = "3.6.4"
 StaticArrays = "1.9.8"
 Test = "1.11.0"
-julia = "1.10"
+julia = "1.6.7"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
