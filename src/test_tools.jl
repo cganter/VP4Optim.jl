@@ -165,14 +165,14 @@ function check_subset(mod::Model{Ny,Nx,Nc,T}, xsy, vals, c_, data_, what, small,
         x0_, lx_, ux_ = collect(x0[mod.x_ind]), collect(lx[mod.x_ind]), collect(ux[mod.x_ind])
 
         if precon
-            res_precon = optimize(Optim.only_fg!(fg!(mod)), lx_, ux_, x0_, Fminbox(LBFGS(P=P(mod, x0_))))
+            res_precon = optimize(Optim.NLSolversBase.only_fg!(fg!(mod)), lx_, ux_, x0_, Fminbox(LBFGS(P=P(mod, x0_))))
             @test norm(x_ - res_precon.minimizer) / norm(x_) < 1e-4
             x!(mod, res_precon.minimizer)
             @test norm(c_ - c(mod)) / norm(c_) < 1e-4
             d[:optim_precon] = res_precon
         end
 
-        res_no_precon = optimize(Optim.only_fg!(fg!(mod)), lx_, ux_, x0_, Fminbox(LBFGS()))
+        res_no_precon = optimize(Optim.NLSolversBase.only_fg!(fg!(mod)), lx_, ux_, x0_, Fminbox(LBFGS()))
         @test norm(x_ - res_no_precon.minimizer) / norm(x_) < 1e-4
         x!(mod, res_no_precon.minimizer)
         @test norm(c_ - c(mod)) / norm(c_) < 1e-4
