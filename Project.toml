@@ -1,6 +1,6 @@
 name = "VP4Optim"
 uuid = "8687cf0f-8f6d-4dd6-8e27-64e326ab5325"
-version = "1.0.13"
+version = "1.0.14"
 authors = ["Carl Ganter <cganter@tum.de>"]
 
 [deps]
